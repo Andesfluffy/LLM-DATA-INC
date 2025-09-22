@@ -1,8 +1,12 @@
-import { ReactNode } from "react";
+import { ReactNode, HTMLAttributes } from "react";
 
-export default function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
+type CardProps = HTMLAttributes<HTMLDivElement> & { children: ReactNode };
+
+export default function Card({ children, className = "", ...rest }: CardProps) {
+  const base = "rounded-xl border shadow-sm bg-white";
+  const merged = className ? `${base} ${className}` : base;
   return (
-    <div className={`rounded-xl border shadow-sm bg-white ${className}`}>
+    <div {...rest} className={merged}>
       {children}
     </div>
   );

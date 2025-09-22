@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
 import { getSchemaSummary } from "@/lib/schema";
-import { openaiClient, pickModel } from "@/lib/openai";
+import { getOpenAIClient, pickModel } from "@/lib/openai";
 import { validateSql, enforceLimit } from "@/lib/guardrails";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { z } from "zod";
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 - NEVER modify data. No INSERT/UPDATE/DELETE/DDL.
 - Always include an explicit LIMIT 100 if appropriate.`;
 
-  const user = `Schema:
+  const userPrompt = `Schema:
 ${schema}
 
 Task: Write a single, safe SELECT for:
@@ -53,11 +53,12 @@ Output only SQL, no explanations.`;
   let generated = "";
   try {
     const model = pickModel();
-    const resp = await openaiClient.chat.completions.create({
+    const client = getOpenAIClient();
+    const resp = await client.chat.completions.create({
       model,
       messages: [
         { role: "system", content: system },
-        { role: "user", content: user }
+        { role: "user", content: userPrompt }
       ],
       temperature: 0.1,
     });

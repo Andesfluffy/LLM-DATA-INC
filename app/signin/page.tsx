@@ -1,13 +1,30 @@
 "use client";
-import { auth, googleProvider } from "@/lib/firebase/client";
+import { tryGetFirebaseClient } from "@/lib/firebase/client";
 import { signInWithPopup } from "firebase/auth";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
 
 export default function SignInPage() {
+  const firebase = tryGetFirebaseClient();
   async function signInGoogle() {
-    await signInWithPopup(auth, googleProvider);
+    if (!firebase) return;
+    await signInWithPopup(firebase.auth, firebase.googleProvider);
     window.location.href = "/";
+  }
+  if (!firebase) {
+    return (
+      <div className="max-w-md mx-auto">
+        <Card>
+          <CardHeader title="Sign in unavailable" subtitle="Firebase client configuration is missing." />
+          <CardBody>
+            <p className="text-sm text-gray-300">
+              Provide NEXT_PUBLIC_FIREBASE_API_KEY, NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, NEXT_PUBLIC_FIREBASE_PROJECT_ID, and
+              NEXT_PUBLIC_FIREBASE_APP_ID to enable authentication.
+            </p>
+          </CardBody>
+        </Card>
+      </div>
+    );
   }
   return (
     <div className="max-w-md mx-auto">

@@ -6,7 +6,7 @@ import ResultsTable from "@/src/components/ResultsTable";
 import ResultsChart from "@/src/components/ResultsChart";
 import CodeBlock from "@/src/components/CodeBlock";
 import EmptyState from "@/src/components/EmptyState";
-import { TableSkeleton } from "@/components/ui/skeleton";
+import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
 import toast from "react-hot-toast";
 import QueryInput from "@/src/components/QueryInput";
 import MosaicHero from "@/src/components/landing/MosaicHero";
@@ -34,7 +34,9 @@ export default function HomePage() {
       const orgId = localStorage.getItem("orgId") || "demo-org";
       const datasourceId = localStorage.getItem("datasourceId");
       if (!datasourceId) { setError("Please configure a data source in Settings."); setBusy(false); return; }
-      const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
+      const { tryGetFirebaseClient } = await import("@/lib/firebase/client");
+      const firebase = tryGetFirebaseClient();
+      const idToken = firebase?.auth.currentUser ? await firebase.auth.currentUser.getIdToken() : undefined;
       const res = await fetch("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },

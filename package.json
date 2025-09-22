@@ -13,9 +13,11 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio"
   },
-  "engines": { "node": ">=18.17" },
+  "engines": {
+    "node": ">=18.17"
+  },
   "dependencies": {
-    "@prisma/client": "^5.18.0",
+    "@prisma/client": "^6.16.2",
     "autoprefixer": "^10.4.20",
     "classnames": "^2.5.1",
     "firebase": "^10.13.1",
@@ -33,6 +35,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
+    "@types/pg": "^8.15.5",
     "@types/react": "^18.2.74",
     "@types/react-dom": "^18.2.24",
     "eslint": "^8.57.0",

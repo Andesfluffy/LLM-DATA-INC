@@ -38,7 +38,9 @@ export default function DataSourcesSettingsPage() {
   async function onTest() {
     setTesting(true); setTestOk(null); setTestMsg(null);
     try {
-      const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
+      const { tryGetFirebaseClient } = await import("@/lib/firebase/client");
+      const firebase = tryGetFirebaseClient();
+      const idToken = firebase?.auth.currentUser ? await firebase.auth.currentUser.getIdToken() : undefined;
       const res = await fetch("/api/datasources/test", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
@@ -64,7 +66,9 @@ export default function DataSourcesSettingsPage() {
   async function onSave() {
     setSaving(true); setSaveOk(null); setSaveMsg(null);
     try {
-      const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
+      const { tryGetFirebaseClient } = await import("@/lib/firebase/client");
+      const firebase = tryGetFirebaseClient();
+      const idToken = firebase?.auth.currentUser ? await firebase.auth.currentUser.getIdToken() : undefined;
       const res = await fetch("/api/datasources/save", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },

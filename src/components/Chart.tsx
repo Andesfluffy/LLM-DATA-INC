@@ -65,18 +65,21 @@ function inferChartFields(fields: string[], rows: Record<string, any>[]):
   const time: string[] = fields.filter((k) => isDateLike(first[k]) || /(_at|date|time)$/i.test(k));
   const categorical: string[] = fields.filter((k) => typeof first[k] === "string");
 
-  if (time.length > 0 && numeric.length > 0) {
-    return { kind: "time", x: time[0], y: numeric[0] };
+  const [firstNumeric] = numeric;
+  const [firstTime] = time;
+  if (firstTime && firstNumeric) {
+    return { kind: "time", x: firstTime, y: firstNumeric };
   }
-  if (categorical.length > 0 && numeric.length > 0) {
-    return { kind: "category", x: bestCategory(categorical, rows), y: numeric[0] };
+  const category = bestCategory(categorical, rows);
+  if (category && firstNumeric) {
+    return { kind: "category", x: category, y: firstNumeric };
   }
   return null;
 }
 
-function bestCategory(candidates: string[], rows: Record<string, any>[]): string {
+function bestCategory(candidates: string[], rows: Record<string, any>[]): string | null {
   // Pick field with lowest unique cardinality (but >1) as category
-  let best = candidates[0];
+  let best: string | null = null;
   let bestScore = Infinity;
   for (const c of candidates) {
     const set = new Set(rows.map((r) => String(r[c])));

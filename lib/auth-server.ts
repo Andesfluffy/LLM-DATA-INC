@@ -8,8 +8,10 @@ export async function getUserFromRequest(req: NextRequest): Promise<AuthUser> {
   if (!authz) return null;
   const m = /^Bearer\s+(.+)$/i.exec(authz);
   if (!m) return null;
+  const rawToken = m[1];
+  if (!rawToken) return null;
   try {
-    const token = await verifyIdToken(m[1]);
+    const token = await verifyIdToken(rawToken);
     return { uid: token.uid, email: token.email || null };
   } catch {
     return null;

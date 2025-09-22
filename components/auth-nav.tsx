@@ -1,24 +1,28 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { auth, googleProvider } from "@/lib/firebase/client";
+import { tryGetFirebaseClient } from "@/lib/firebase/client";
 import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
 
 export default function AuthNav() {
   const [user, setUser] = useState<{ email?: string | null } | null>(null);
+  const firebase = tryGetFirebaseClient();
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => setUser(u ? { email: u.email } : null));
+    if (!firebase) return;
+    const unsub = onAuthStateChanged(firebase.auth, (u) => setUser(u ? { email: u.email } : null));
     return () => unsub();
-  }, []);
+  }, [firebase]);
   async function signInGoogle() {
-    await signInWithPopup(auth, googleProvider);
+    if (!firebase) return;
+    await signInWithPopup(firebase.auth, firebase.googleProvider);
   }
   async function doSignOut() {
-    await signOut(auth);
+    if (!firebase) return;
+    await signOut(firebase.auth);
   }
   return (
     <div className="flex items-center gap-2">
-      {user ? (
+      {firebase && user ? (
         <>
           <span className="text-sm text-gray-300 hidden sm:inline">{user.email}</span>
           <button onClick={doSignOut} className="text-sm px-2 py-1 border border-accent text-accent rounded">Sign out</button>
@@ -26,7 +30,9 @@ export default function AuthNav() {
       ) : (
         <>
           <Link href="/signin" className="text-sm px-2 py-1 border border-accent text-accent rounded">Sign in</Link>
-          <button onClick={signInGoogle} className="text-sm px-2 py-1 border border-accent text-accent rounded">Google</button>
+          {firebase && (
+            <button onClick={signInGoogle} className="text-sm px-2 py-1 border border-accent text-accent rounded">Google</button>
+          )}
         </>
       )}
     </div>

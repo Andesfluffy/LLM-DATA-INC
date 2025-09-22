@@ -18,13 +18,17 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
   const [busyRun, setBusyRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"table" | "chart">("table");
+  const hasRows = Array.isArray(rows) && rows.length > 0;
+  const fields = hasRows ? Object.keys(rows[0] as Row) : [];
 
   async function generate() {
     setBusyGen(true); setError(null); setRows(null);
     const orgId = localStorage.getItem("orgId") || "demo-org";
     const datasourceId = localStorage.getItem("datasourceId");
     if (!datasourceId) { setBusyGen(false); setError("Please save a data source in Settings."); return; }
-    const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
+    const { tryGetFirebaseClient } = await import("@/lib/firebase/client");
+    const firebase = tryGetFirebaseClient();
+    const idToken = firebase?.auth.currentUser ? await firebase.auth.currentUser.getIdToken() : undefined;
     const res = await fetch("/api/nl2sql", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, prompt }) });
     setBusyGen(false);
     if (!res.ok) { setError((await res.json()).error || "Failed"); return; }
@@ -37,7 +41,9 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
     const orgId = localStorage.getItem("orgId") || "demo-org";
     const datasourceId = localStorage.getItem("datasourceId");
     if (!datasourceId) { setBusyRun(false); setError("Please save a data source in Settings."); return; }
-    const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
+    const { tryGetFirebaseClient } = await import("@/lib/firebase/client");
+    const firebase = tryGetFirebaseClient();
+    const idToken = firebase?.auth.currentUser ? await firebase.auth.currentUser.getIdToken() : undefined;
     const res = await fetch("/api/execute", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, sql }) });
     setBusyRun(false);
     if (!res.ok) { setError((await res.json()).error || "Failed"); return; }
@@ -48,7 +54,9 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
   async function exportCsv() {
     const orgId = localStorage.getItem("orgId") || "demo-org";
     const datasourceId = localStorage.getItem("datasourceId");
-    const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
+    const { tryGetFirebaseClient } = await import("@/lib/firebase/client");
+    const firebase = tryGetFirebaseClient();
+    const idToken = firebase?.auth.currentUser ? await firebase.auth.currentUser.getIdToken() : undefined;
     const res = await fetch("/api/export.csv", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, sql }) });
     if (!res.ok) { setError((await res.json()).error || "Failed"); return; }
     const blob = await res.blob();
@@ -88,7 +96,7 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
       <Card>
         <CardHeader title="Results" />
         <CardBody>
-          {rows && rows.length > 0 && (
+          {hasRows && (
             <div className="mb-3 flex items-center gap-2">
               <Button variant={view === "table" ? "primary" : "secondary"} onClick={()=>setView("table")}>Table</Button>
               <Button variant={view === "chart" ? "primary" : "secondary"} onClick={()=>setView("chart")}>Chart</Button>
@@ -96,13 +104,13 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
           )}
           {!rows ? (
             <EmptyState title="No rows yet" message="Run a query to see results." />
-          ) : rows.length === 0 ? (
+          ) : !hasRows ? (
             <EmptyState title="Empty" message="The query returned no rows." />
           ) : (
             view === "chart" ? (
-              <Chart fields={Object.keys(rows[0])} rows={rows} />
+              <Chart fields={fields} rows={rows} />
             ) : (
-              <Table fields={Object.keys(rows[0])} rows={rows} />
+              <Table fields={fields} rows={rows} />
             )
           )}
         </CardBody>

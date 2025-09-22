@@ -13,8 +13,9 @@ export function validateSql(sqlInput: string, allowedTables: string[]): { ok: tr
   const fromJoinRe = /(from|join)\s+([a-zA-Z_][\w\.]*)(?:\s+as\s+\w+|\s+\w+)?/gi;
   let m: RegExpExecArray | null;
   while ((m = fromJoinRe.exec(sql)) !== null) {
-    const t = m[2];
-    const base = t.includes(".") ? t : t; // allow public.
+    const token = m[2];
+    if (!token) continue;
+    const base = token.includes(".") ? token : token; // allow public.
     tableTokens.add(base.toLowerCase());
   }
   if (tableTokens.size > 0) {
