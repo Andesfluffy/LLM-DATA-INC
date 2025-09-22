@@ -1,0 +1,39 @@
+type Props = {
+  fields: string[];
+  rows: Record<string, any>[];
+  className?: string;
+};
+
+export default function Table({ fields, rows, className = "" }: Props) {
+  return (
+    <div className={`overflow-auto border border-[#23263a]/40 rounded-2xl bg-[#23263a]/60 shadow-lg backdrop-blur-xl ${className}`}>
+      <table className="min-w-full text-base">
+        <thead className="sticky top-0">
+          <tr>
+            {fields.map((h) => (
+              <th key={h} className="text-left px-4 py-3 border-b border-[#23263a]/40 text-slate-200 bg-[#23263a]/80 font-semibold tracking-tight backdrop-blur-xl">{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className={`${i % 2 ? "bg-[#23263a]/40" : "bg-[#23263a]/60"} animate-fade-in`}> 
+              {fields.map((h) => (
+                <td key={h} className="px-4 py-3 align-top border-b border-[#23263a]/40 font-mono text-slate-100">
+                  {formatCell((r as any)[h])}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function formatCell(v: any) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "object") return JSON.stringify(v);
+  return String(v);
+}
+

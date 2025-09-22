@@ -1,0 +1,104 @@
+import "./globals.css";
+import { ReactNode } from "react";
+import Link from "next/link";
+import AuthNav from "@/components/auth-nav";
+import { Toaster } from "react-hot-toast";
+// Removed ThemeToggle for a single elegant theme
+
+export default async function RootLayout({
+  children,
+}: {
+  children: ReactNode;
+}) {
+  // theme is applied client-side via hook in individual components if needed; layout stays server
+  return (
+    <html lang="en">
+      <body>
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#181c28] to-[#23263a]">
+          <nav className="border-b border-[#23263a]/60 bg-[#23263a]/80 backdrop-blur-xl sticky top-0 z-10 shadow-lg">
+            <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-6">
+              <Link href="/" className="flex items-center gap-3">
+                <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-700 to-pink-500 text-white font-bold text-xl shadow-lg">
+                  {/* Elegant logo box, replace with SVG if needed */}
+                  D
+                </span>
+                <span className="font-bold text-2xl tracking-tight text-white drop-shadow">DataVista AI</span>
+              </Link>
+              <div className="flex-1" />
+              <Link
+                href="/"
+                className="text-base text-slate-200 hover:text-pink-400 font-medium px-3 py-1 rounded-xl transition"
+              >
+                Ask
+              </Link>
+              <Link
+                href="/saved"
+                className="text-base text-slate-200 hover:text-pink-400 font-medium px-3 py-1 rounded-xl transition"
+              >
+                Saved
+              </Link>
+              <Link
+                href="/settings/datasources"
+                className="text-base text-slate-200 hover:text-pink-400 font-medium px-3 py-1 rounded-xl transition"
+              >
+                Settings
+              </Link>
+              <AuthNav />
+            </div>
+          </nav>
+          <div className="flex-1 max-w-5xl mx-auto w-full px-6 py-8 flex gap-8">
+            <aside className="hidden md:block w-56 pt-2">
+              <div className="sticky top-24 space-y-2">
+                <Link
+                  className="block px-4 py-2 rounded-xl bg-[#23263a]/60 hover:bg-pink-500/20 text-slate-200 font-medium transition shadow"
+                  href="/"
+                >
+                  Ask
+                </Link>
+                <Link
+                  className="block px-4 py-2 rounded-xl bg-[#23263a]/60 hover:bg-pink-500/20 text-slate-200 font-medium transition shadow"
+                  href="/saved"
+                >
+                  Saved
+                </Link>
+                <Link
+                  className="block px-4 py-2 rounded-xl bg-[#23263a]/60 hover:bg-pink-500/20 text-slate-200 font-medium transition shadow"
+                  href="/settings/datasources"
+                >
+                  Settings
+                </Link>
+              </div>
+            </aside>
+            <main className="flex-1 bg-[#23263a]/80 rounded-3xl shadow-2xl p-10 min-h-[60vh] backdrop-blur-xl border border-[#23263a]/40">
+              {children}
+            </main>
+          </div>
+          <footer className="border-t border-[#23263a]/60 bg-[#23263a]/80 text-xs text-slate-400 py-6 text-center space-x-6 shadow-lg backdrop-blur-xl">
+            <Link href="#" className="hover:text-pink-400 transition">Privacy</Link>
+            <Link href="#" className="hover:text-pink-400 transition">Terms</Link>
+            <span>© {new Date().getFullYear()} DataVista AI. Intelligent Data Insights Platform.</span>
+          </footer>
+        </div>
+        <Toaster position="top-right" />
+      </body>
+    </html>
+  );
+}
+
+export const metadata = {
+  title: "DataVista AI",
+  description: "Intelligent Data Insights Platform. Ask questions, get instant analytics, and safe SQL.",
+  openGraph: {
+    title: "DataVista AI",
+    description: "Intelligent Data Insights Platform. Ask questions, get instant analytics, and safe SQL.",
+    url: process.env.NEXTAUTH_URL || "http://localhost:3000",
+    siteName: "DataVista AI",
+    images: [{ url: "/og.svg", width: 1200, height: 630, alt: "DataVista AI" }],
+    locale: "en_US",
+    type: "website",
+  },
+  icons: {
+    icon: "/favicon.svg",
+  },
+};
+

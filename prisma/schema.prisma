@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  // Optional org relation for org-scoped data sources and logs
+  orgId         String?
+  org           Org?      @relation(fields: [orgId], references: [id])
+  dataSources   DataSource[]
+  audits        QueryAudit[]
+  auditLogs     AuditLog[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model DataSource {
+  id        String   @id @default(cuid())
+  // Legacy fields used by existing UI
+  name      String
+  url       String?
+
+  // New org-scoped fields per spec
+  orgId     String?
+  org       Org?     @relation(fields: [orgId], references: [id])
+  type      String   @default("postgres")
+  host      String?
+  port      Int?
+  database  String?
+  user      String?
+  password  String?
+
+  // Legacy owner linkage (optional now to avoid breaking changes)
+  ownerId   String?
+  owner     User?    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+    queryAudits QueryAudit[]
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+}
+
+model QueryAudit {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dataSourceId  String?
+  dataSource    DataSource? @relation(fields: [dataSourceId], references: [id])
+  nlQuery       String?
+  generatedSql  String?
+  executedSql   String?
+  status        String
+  error         String?
+  durationMs    Int?
+  rowCount      Int?
+  createdAt     DateTime @default(now())
+}
+
+// New models to satisfy requested API behavior
+model Org {
+  id          String       @id @default(cuid())
+  name        String
+  users       User[]
+  datasources DataSource[]
+  auditLogs   AuditLog[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  orgId      String
+  org        Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  question   String
+  sql        String?
+  durationMs Int?
+  rowCount   Int?
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+}
