@@ -1,12 +1,12 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
 import ResultsTable from "@/src/components/ResultsTable";
 import ResultsChart from "@/src/components/ResultsChart";
 import CodeBlock from "@/src/components/CodeBlock";
 import EmptyState from "@/src/components/EmptyState";
-import { TableSkeleton } from "@/components/ui/skeleton";
+import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
 import toast from "react-hot-toast";
 import QueryInput from "@/src/components/QueryInput";
 import MosaicHero from "@/src/components/landing/MosaicHero";
@@ -16,7 +16,6 @@ import HowItWorks from "@/src/components/landing/HowItWorks";
 type QueryResult = { sql: string; fields: string[]; rows: any[] };
 
 export default function HomePage() {
-  const [question, setQuestion] = useState("");
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -28,7 +27,7 @@ export default function HomePage() {
     setHasDs(!!dsId);
   }, []);
 
-  async function onAsk() {
+  async function onAsk(prompt: string) {
     setBusy(true); setError(null); setResult(null);
     try {
       const orgId = localStorage.getItem("orgId") || "demo-org";
@@ -38,7 +37,7 @@ export default function HomePage() {
       const res = await fetch("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
-        body: JSON.stringify({ orgId, datasourceId, question }),
+        body: JSON.stringify({ orgId, datasourceId, question: prompt }),
       });
       const d = await res.json();
       if (!res.ok) { setError(d?.error || "Request failed"); toast.error(d?.error || "Request failed"); }
@@ -72,7 +71,10 @@ export default function HomePage() {
         <CardHeader title="Ask DataVista AI" subtitle={hasDs ? "Enter a question to generate and run SQL" : "No data source configured yet"} />
         <CardBody>
           {!hasDs && <EmptyState title="No data source" examples={["Top 5 products by revenue","Revenue by day last month","Orders by region"]} />}
-          <QueryInput onSubmit={(q)=>{ setQuestion(q); onAsk(); }} />
+          <QueryInput onSubmit={(q) => onAsk(q)} />
+          {error && (
+            <p className="mt-3 text-sm text-rose-400">{error}</p>
+          )}
         </CardBody>
       </Card>
 
@@ -124,20 +126,5 @@ export default function HomePage() {
       </div>
     </div>
   );
-}
-
-function saveRecent(q: string){
-  try{
-    const arr = JSON.parse(localStorage.getItem("recentQueries") || "[]");
-    const list: string[] = Array.isArray(arr)? arr: [];
-    const next = [q, ...list.filter((x)=>x!==q)].slice(0,5);
-    localStorage.setItem("recentQueries", JSON.stringify(next));
-  }catch{}
-}
-
-function formatCell(v: any) {
-  if (v === null || v === undefined) return "";
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
 }
 
