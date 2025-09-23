@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { toast } from "@/src/components/ui/Toast";
 import Button from "@/src/components/Button";
 import GoogleGlyph from "@/src/components/GoogleGlyph";
 import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
@@ -16,6 +18,7 @@ export default function AuthNav() {
   const [signingOut, setSigningOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -39,8 +42,11 @@ export default function AuthNav() {
     setAuthenticating(true);
     try {
       await signInWithGoogle();
+      toast.success("Signed in! Taking you to the hero section.");
+      router.push("/#hero");
     } catch (error) {
       console.error("Google sign-in failed", error);
+      toast.error("Google sign-in failed. Please try again.");
     } finally {
       setAuthenticating(false);
     }
@@ -51,8 +57,10 @@ export default function AuthNav() {
     try {
       await firebaseSignOut();
       setConfirmOpen(false);
+      toast.success("Signed out securely.");
     } catch (error) {
       console.error("Sign out failed", error);
+      toast.error("Sign out failed. Please try again.");
     } finally {
       setSigningOut(false);
     }

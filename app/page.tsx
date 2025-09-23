@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import { useEffect, useState } from "react";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
@@ -7,7 +7,7 @@ import ResultsChart from "@/src/components/ResultsChart";
 import CodeBlock from "@/src/components/CodeBlock";
 import EmptyState from "@/src/components/EmptyState";
 import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
-import toast from "react-hot-toast";
+import { toast } from "@/src/components/ui/Toast";
 import QueryInput from "@/src/components/QueryInput";
 import RequireAuth from "@/src/components/RequireAuth";
 import MosaicHero from "@/src/components/landing/MosaicHero";
@@ -175,4 +175,5 @@ export default function HomePage() {
     </RequireAuth>
   );
 }
+
 

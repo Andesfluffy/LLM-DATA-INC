@@ -1,8 +1,8 @@
-import "./globals.css";
+﻿import "./globals.css";
 import { ReactNode } from "react";
 import Link from "next/link";
 import AuthNav from "@/components/auth-nav";
-import { Toaster } from "react-hot-toast";
+import { AppToaster } from "@/src/components/ui/Toast";
 import { Inter, Space_Grotesk } from "next/font/google";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
@@ -57,10 +57,10 @@ export default async function RootLayout({
           <footer className="border-t border-[#23263a]/60 bg-[#23263a]/80 text-xs text-slate-400 py-6 text-center space-x-6 shadow-lg backdrop-blur-xl">
             <Link href="#" className="hover:text-accent transition">Privacy</Link>
             <Link href="#" className="hover:text-accent transition">Terms</Link>
-            <span>© {new Date().getFullYear()} Data Vista. Intelligent Data Insights Platform.</span>
+            <span>Â© {new Date().getFullYear()} Data Vista. Intelligent Data Insights Platform.</span>
           </footer>
         </div>
-        <Toaster position="top-right" />
+        <AppToaster />
       </body>
     </html>
   );
@@ -82,3 +82,4 @@ export const metadata = {
     icon: "/favicon.svg",
   },
 };
+
