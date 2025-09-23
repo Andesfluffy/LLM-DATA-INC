@@ -3,17 +3,34 @@ import React, { useState } from "react";
 
 export default function CodeBlock({ code }: { code: string }) {
   const [open, setOpen] = useState(false);
-  function copy(){ navigator.clipboard.writeText(code); }
+
+  function copy() {
+    navigator.clipboard.writeText(code);
+  }
+
   return (
-    <div className="border rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-800 border-b">
-        <button onClick={()=>setOpen(o=>!o)} className="text-sm text-gray-700 dark:text-gray-200">{open? 'Hide SQL' : 'Show SQL'}</button>
-        <button onClick={copy} className="text-xs px-2 py-1 border rounded-md">Copy</button>
+    <div className="overflow-hidden rounded-2xl border border-accent/40">
+      <div className="flex items-center justify-between border-b border-accent/20 bg-gray-50 px-3 py-2 dark:bg-gray-800/70">
+        <button
+          type="button"
+          onClick={() => setOpen((value) => !value)}
+          className="rounded-full border border-accent/60 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+        >
+          {open ? 'Hide SQL' : 'Show SQL'}
+        </button>
+        <button
+          type="button"
+          onClick={copy}
+          className="rounded-full border border-accent px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+        >
+          Copy
+        </button>
       </div>
       {open && (
-        <pre className="p-3 bg-white dark:bg-gray-900 text-sm overflow-auto"><code>{code}</code></pre>
+        <pre className="overflow-auto bg-white p-3 text-sm dark:bg-gray-900">
+          <code>{code}</code>
+        </pre>
       )}
     </div>
   );
 }
-

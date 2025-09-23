@@ -5,14 +5,15 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 export default function Button({ variant = "primary", className = "", children, ...props }: ButtonProps) {
-  const base = "inline-flex items-center justify-center rounded-xl px-5 py-3 text-base font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg";
-  const styles = variant === "primary"
-    ? "bg-gradient-to-tr from-primary to-accent text-white hover:brightness-110 border-none shadow-[0_8px_20px_rgba(249,115,22,0.25)]"
-    : variant === "accent"
-    ? "bg-accent text-white hover:bg-orange-600 border-none shadow-[0_8px_20px_rgba(249,115,22,0.25)]"
-    : variant === "ghost"
-    ? "text-gray-100 hover:bg-[#2A2D3A] border-none"
-    : "border border-accent text-accent bg-transparent hover:bg-accent/10";
+  const base = "inline-flex items-center justify-center rounded-full px-3 py-1.5 text-sm font-semibold transition-all border border-accent/80 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed";
+  const styles =
+    variant === "primary"
+      ? "bg-gradient-to-tr from-accent/90 to-primary text-white hover:from-accent hover:to-primary/90 border-accent shadow-[0_6px_18px_rgba(249,115,22,0.28)]"
+      : variant === "accent"
+      ? "bg-accent/20 text-accent hover:bg-accent/30 border-accent"
+      : variant === "ghost"
+      ? "bg-transparent text-slate-100 hover:bg-accent/10 border-accent/60"
+      : "bg-transparent text-accent hover:bg-accent/10 border-accent";
   return (
     <button className={`${base} ${styles} ${className}`} {...props}>
       {children}

@@ -58,7 +58,7 @@ export default function AuthNav() {
     }
   }
 
-  const compactButtonClass = "inline-flex items-center gap-2 rounded-full border border-[#2A2D3A] bg-[#0B0F12]/70 px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-accent hover:text-white disabled:opacity-60 disabled:cursor-not-allowed";
+  const compactButtonClass = "inline-flex items-center gap-2 rounded-full border border-accent px-3 py-1.5 text-xs font-semibold text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60 disabled:cursor-not-allowed";
 
   return (
     <div className="flex items-center gap-3">
@@ -69,7 +69,7 @@ export default function AuthNav() {
           <button
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-accent/40 bg-accent/15 text-sm font-semibold text-accent transition hover:bg-accent/25"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-accent/70 bg-accent/15 text-sm font-semibold text-accent transition hover:bg-accent/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
             aria-label="Account menu"
           >
             {(user.displayName || user.email || "").slice(0, 1).toUpperCase() || "G"}
@@ -107,7 +107,7 @@ export default function AuthNav() {
                     setMenuOpen(false);
                     setConfirmOpen(true);
                   }}
-                  className="w-full rounded-xl border border-[#2A2D3A] bg-transparent px-3 py-2 text-left text-slate-200 transition hover:border-rose-400 hover:text-rose-200"
+                  className="w-full rounded-full border border-accent/60 bg-transparent px-3 py-1.5 text-left text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
                 >
                   Sign out
                 </button>

@@ -16,7 +16,13 @@ export default function QueryInput({ onSubmit }: { onSubmit: (q: string) => void
       {recent.length>0 && (
         <div className="flex flex-wrap gap-2">
           {recent.map((r,i)=> (
-            <button key={i} onClick={()=>{ setQ(r); setTimeout(()=>submit(),0); }} className="px-2 py-1 rounded-full border text-xs hover:bg-gray-50">{r}</button>
+            <button
+              key={i}
+              onClick={()=>{ setQ(r); setTimeout(()=>submit(),0); }}
+              className="px-3 py-1.5 rounded-full border border-accent/60 text-xs text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+            >
+              {r}
+            </button>
           ))}
         </div>
       )}

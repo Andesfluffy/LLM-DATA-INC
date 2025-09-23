@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Button from "@/src/components/Button";
 
 type Props = { initial?: { id: string; name: string; url: string } | null };
 
@@ -46,7 +47,7 @@ export default function DataSourceForm({ initial }: Props) {
         <label className="block text-sm mb-1">Postgres URL</label>
         <input className="border rounded w-full px-3 py-2 font-mono" value={url} onChange={(e)=>setUrl(e.target.value)} placeholder="postgresql://user:pass@host:5432/db" />
       </div>
-      <button disabled={saving} className="px-3 py-2 bg-black text-white rounded">{saving ? "Saving..." : "Save"}</button>
+      <Button type="submit" disabled={saving} variant="secondary" className="min-w-[96px] justify-center">{saving ? "Saving..." : "Save"}</Button>
       {message && <span className="text-sm ml-2">{message}</span>}
     </form>
   );
