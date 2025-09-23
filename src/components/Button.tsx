@@ -11,13 +11,13 @@ const baseClasses =
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "border border-[rgb(var(--accent))] bg-[rgb(var(--accent))] text-[#0B0F12] shadow-[0_8px_18px_rgba(249,115,22,0.28)] hover:bg-[rgb(var(--accent))]/90 hover:shadow-[0_10px_24px_rgba(249,115,22,0.32)]",
+    "border border-transparent bg-gradient-to-r from-[rgb(var(--accent))] to-[#ff8a3d] text-[#0B0F12] shadow-[0_12px_28px_rgba(249,115,22,0.32)] hover:from-[#ff7a20] hover:to-[#ff9642]",
   secondary:
-    "border border-[rgb(var(--accent))] bg-transparent text-[rgb(var(--accent))] hover:bg-[rgba(249,115,22,0.12)]",
+    "border border-[rgba(249,115,22,0.55)] bg-[rgba(249,115,22,0.14)] text-white hover:bg-[rgba(249,115,22,0.22)] hover:border-[rgba(249,115,22,0.85)]",
   accent:
-    "border border-[rgba(236,237,240,0.35)] bg-[rgb(var(--primary))] text-[rgb(var(--fg))] hover:border-[rgb(var(--accent))] hover:text-white",
+    "border border-[rgba(236,237,240,0.28)] bg-white/8 text-white hover:border-[rgba(249,115,22,0.6)] hover:bg-[rgba(249,115,22,0.18)]",
   ghost:
-    "border border-transparent bg-transparent text-[rgb(var(--fg))] hover:bg-white/10",
+    "border border-transparent text-slate-200 hover:bg-white/10 hover:text-white",
 };
 
 export function buttonClassName({

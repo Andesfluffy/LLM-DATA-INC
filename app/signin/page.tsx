@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { CheckCircle2 } from "lucide-react";
+import { toast } from "@/src/components/ui/Toast";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
 import GoogleGlyph from "@/src/components/GoogleGlyph";
@@ -28,25 +29,53 @@ const SIGN_IN_FEATURES = [
   },
 ];
 
+const HERO_REDIRECT_DELAY_MS = 620;
+
 export default function SignInPage() {
   const router = useRouter();
   const { user, loading, signInWithGoogle } = useFirebaseAuth();
   const [authenticating, setAuthenticating] = useState(false);
+  const hasRedirectedRef = useRef(false);
+  const redirectTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!loading && user) {
-      const timeout = window.setTimeout(() => router.replace("/"), 400);
-      return () => window.clearTimeout(timeout);
+      if (hasRedirectedRef.current) return;
+      hasRedirectedRef.current = true;
+      toast.success("Signed in successfully. Redirecting to the hero section.");
+      redirectTimeoutRef.current = window.setTimeout(() => {
+        router.replace("/#hero");
+        redirectTimeoutRef.current = null;
+      }, HERO_REDIRECT_DELAY_MS);
+      return () => {
+        if (redirectTimeoutRef.current !== null) {
+          window.clearTimeout(redirectTimeoutRef.current);
+          redirectTimeoutRef.current = null;
+        }
+      };
+    }
+
+    if (!user && !loading) {
+      hasRedirectedRef.current = false;
     }
   }, [loading, user, router]);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimeoutRef.current !== null) {
+        window.clearTimeout(redirectTimeoutRef.current);
+        redirectTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   async function handleGoogle() {
     setAuthenticating(true);
     try {
       await signInWithGoogle();
-      router.replace("/");
     } catch (err) {
       console.error("Google sign-in failed", err);
+      toast.error("Google sign-in failed. Please try again.");
     } finally {
       setAuthenticating(false);
     }
@@ -164,7 +193,7 @@ export default function SignInPage() {
           {!loading && user ? (
             <div className="flex items-center justify-center gap-2 text-sm text-emerald-300">
               <CheckCircle2 className="h-4 w-4" />
-              You are already signed in. Redirecting...
+              You are already signed in. Redirecting to the hero...
             </div>
           ) : null}
         </div>

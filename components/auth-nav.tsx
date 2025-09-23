@@ -5,11 +5,13 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { toast } from "@/src/components/ui/Toast";
-import Button from "@/src/components/Button";
+import Button, { buttonClassName } from "@/src/components/Button";
 import GoogleGlyph from "@/src/components/GoogleGlyph";
 import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
 import Modal from "@/src/components/ui/Modal";
 import { Skeleton } from "@/components/ui/skeleton";
+
+const HERO_REDIRECT_DELAY_MS = 520;
 
 export default function AuthNav() {
   const { user, loading, signInWithGoogle, signOut: firebaseSignOut } = useFirebaseAuth();
@@ -19,6 +21,7 @@ export default function AuthNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
+  const signInRedirectTimeout = useRef<number | null>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -33,6 +36,15 @@ export default function AuthNav() {
   }, [menuOpen]);
 
   useEffect(() => {
+    return () => {
+      if (signInRedirectTimeout.current !== null) {
+        window.clearTimeout(signInRedirectTimeout.current);
+        signInRedirectTimeout.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (!user) {
       setMenuOpen(false);
     }
@@ -42,8 +54,10 @@ export default function AuthNav() {
     setAuthenticating(true);
     try {
       await signInWithGoogle();
-      toast.success("Signed in! Taking you to the hero section.");
-      router.push("/#hero");
+      toast.success("Signed in successfully. Redirecting to the hero.");
+      signInRedirectTimeout.current = window.setTimeout(() => {
+        router.push("/#hero");
+      }, HERO_REDIRECT_DELAY_MS);
     } catch (error) {
       console.error("Google sign-in failed", error);
       toast.error("Google sign-in failed. Please try again.");
@@ -66,7 +80,8 @@ export default function AuthNav() {
     }
   }
 
-  const compactButtonClass = "inline-flex items-center gap-2 rounded-xl border border-accent px-3 py-2 text-sm font-medium text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:opacity-60 disabled:cursor-not-allowed";
+  const compactButtonClass = buttonClassName({ variant: "secondary", className: "px-4" });
+  const menuSignOutButtonClass = buttonClassName({ variant: "secondary", className: "w-full justify-start text-left" });
 
   return (
     <div className="flex items-center gap-3">
@@ -115,7 +130,7 @@ export default function AuthNav() {
                     setMenuOpen(false);
                     setConfirmOpen(true);
                   }}
-                  className="w-full rounded-xl border border-accent px-3 py-2 text-left text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                  className={menuSignOutButtonClass}
                 >
                   Sign out
                 </button>
