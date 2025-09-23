@@ -9,10 +9,9 @@ export async function getUserFromRequest(req: NextRequest): Promise<AuthUser> {
   const m = /^Bearer\s+(.+)$/i.exec(authz);
   if (!m) return null;
   try {
-    const token = await verifyIdToken(m[1]);
+    const token = await verifyIdToken(m[1]!);
     return { uid: token.uid, email: token.email || null };
   } catch {
     return null;
   }
 }
-

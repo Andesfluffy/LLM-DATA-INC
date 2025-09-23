@@ -66,17 +66,17 @@ export default function HomePage() {
   return (
     <div className="space-y-10">
   <MosaicHero />
-  <FeatureGrid />
-  <HowItWorks />
+  <FeatureGrid brandName="DataVista AI" />
+  <HowItWorks brandName="DataVista AI" />
       <Card id="ask">
-        <CardHeader title="Ask Data Vista" subtitle={hasDs ? "Enter a question to generate and run SQL" : "No data source configured yet"} />
+        <CardHeader title="Ask DataVista AI" subtitle={hasDs ? "Enter a question to generate and run SQL" : "No data source configured yet"} />
         <CardBody>
           {!hasDs && <EmptyState title="No data source" examples={["Top 5 products by revenue","Revenue by day last month","Orders by region"]} />}
           <QueryInput onSubmit={(q)=>{ setQuestion(q); onAsk(); }} />
         </CardBody>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
         <Card>
           <CardHeader title="Generated SQL" />
           <CardBody>
@@ -99,8 +99,8 @@ export default function HomePage() {
           <CardBody>
             {result?.rows && result.rows.length > 0 && (
               <div className="mb-3 flex items-center gap-2">
-                <Button variant={view === "table" ? "primary" : "secondary"} onClick={()=>setView("table")}>Table</Button>
-                <Button variant={view === "chart" ? "primary" : "secondary"} onClick={()=>setView("chart")}>Chart</Button>
+                <button type="button" onClick={()=>setView("table")} className={`rounded-full border px-4 py-1.5 text-xs transition ${view === "table" ? "border-accent text-accent bg-accent/10 shadow-sm" : "border-accent/40 text-slate-300 hover:border-accent/80 hover:text-accent"}`}>Table</button>
+                <button type="button" onClick={()=>setView("chart")} className={`rounded-full border px-4 py-1.5 text-xs transition ${view === "chart" ? "border-accent text-accent bg-accent/10 shadow-sm" : "border-accent/40 text-slate-300 hover:border-accent/80 hover:text-accent"}`}>Chart</button>
               </div>
             )}
             {busy && !result?.rows ? (
@@ -140,3 +140,4 @@ function formatCell(v: any) {
   if (typeof v === 'object') return JSON.stringify(v);
   return String(v);
 }
+

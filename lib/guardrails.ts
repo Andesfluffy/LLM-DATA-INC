@@ -13,7 +13,7 @@ export function validateSql(sqlInput: string, allowedTables: string[]): { ok: tr
   const fromJoinRe = /(from|join)\s+([a-zA-Z_][\w\.]*)(?:\s+as\s+\w+|\s+\w+)?/gi;
   let m: RegExpExecArray | null;
   while ((m = fromJoinRe.exec(sql)) !== null) {
-    const t = m[2];
+    const t = m[2]!;
     const base = t.includes(".") ? t : t; // allow public.
     tableTokens.add(base.toLowerCase());
   }
@@ -35,4 +35,3 @@ export function enforceLimit(sqlInput: string, maxRows: number): string {
   if (hasLimit) return sql;
   return `${sql} LIMIT ${Math.max(1, maxRows)}`;
 }
-

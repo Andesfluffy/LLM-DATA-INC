@@ -1,7 +1,5 @@
 {
   "framework": "nextjs",
-  "buildCommand": "npm run prisma:generate && npm run build",
-  "outputDirectory": ".next",
-  "ignoreCommand": "echo 'Use Vercel's default caching'"
+  "installCommand": "npm ci && npm run prisma:generate",
+  "buildCommand": "npm run build"
 }
-

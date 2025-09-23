@@ -35,10 +35,10 @@ export default async function RootLayout({
                 Ask
               </Link>
               <Link
-                href="/saved"
+                href="/history"
                 className="text-base text-slate-200 hover:text-accent font-medium px-3 py-1 rounded-xl transition"
               >
-                Saved
+                History
               </Link>
               <Link
                 href="/settings/datasources"

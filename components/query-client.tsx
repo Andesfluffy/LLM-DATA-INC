@@ -98,11 +98,11 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
             <EmptyState title="No rows yet" message="Run a query to see results." />
           ) : rows.length === 0 ? (
             <EmptyState title="Empty" message="The query returned no rows." />
-          ) : (
-            view === "chart" ? (
-              <Chart fields={Object.keys(rows[0])} rows={rows} />
             ) : (
-              <Table fields={Object.keys(rows[0])} rows={rows} />
+              view === "chart" ? (
+              <Chart fields={Object.keys(rows?.[0] || {})} rows={rows} />
+            ) : (
+              <Table fields={Object.keys(rows?.[0] || {})} rows={rows} />
             )
           )}
         </CardBody>

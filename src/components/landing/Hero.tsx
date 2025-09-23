@@ -16,7 +16,7 @@ export default function LandingHero() {
           <span className="bg-gradient-to-r from-primary via-gray-900 to-accent bg-clip-text text-transparent">Ask your data with confidence.</span>
         </h1>
         <p className="mt-3 md:mt-4 text-gray-600 dark:text-gray-300 max-w-2xl text-sm md:text-base">
-          Natural language to safe PostgreSQL. Schema-aware, SELECT‑only guardrails, instant charts, and audit logging — in a refined, enterprise‑grade interface.
+          Natural language to safe PostgreSQL. Schema-aware, SELECT‑only guardrails, instant charts, and audit logging - in a refined, enterprise‑grade interface.
         </p>
 
         <div className="mt-6 flex flex-wrap items-center gap-3">

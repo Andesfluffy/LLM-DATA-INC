@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
   if (!guard.ok) return NextResponse.json({ error: `Guardrails rejected SQL: ${guard.reason}` }, { status: 400 });
   const limited = enforceLimit(sql, 5000);
   try {
-    const rows = await prisma.$transaction(async (tx) => {
+    const rows = await prisma.$transaction(async (tx: any) => {
       await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = 10000`);
-      const r = await tx.$queryRawUnsafe<any[]>(limited);
+      const r = await tx.$queryRawUnsafe(limited) as any[];
       return r;
     });
     await appPrisma.auditLog.create({ data: { orgId: orgId || ds.orgId!, userId: null, question: "", sql: limited, durationMs: Date.now() - t0, rowCount: rows.length } });

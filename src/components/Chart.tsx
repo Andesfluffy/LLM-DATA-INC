@@ -66,17 +66,17 @@ function inferChartFields(fields: string[], rows: Record<string, any>[]):
   const categorical: string[] = fields.filter((k) => typeof first[k] === "string");
 
   if (time.length > 0 && numeric.length > 0) {
-    return { kind: "time", x: time[0], y: numeric[0] };
+    return { kind: "time", x: time[0]!, y: numeric[0]! };
   }
   if (categorical.length > 0 && numeric.length > 0) {
-    return { kind: "category", x: bestCategory(categorical, rows), y: numeric[0] };
+    return { kind: "category", x: bestCategory(categorical, rows), y: numeric[0]! };
   }
   return null;
 }
 
 function bestCategory(candidates: string[], rows: Record<string, any>[]): string {
   // Pick field with lowest unique cardinality (but >1) as category
-  let best = candidates[0];
+  let best = candidates[0]!;
   let bestScore = Infinity;
   for (const c of candidates) {
     const set = new Set(rows.map((r) => String(r[c])));

@@ -23,9 +23,9 @@ export async function POST(req: NextRequest) {
   if (!guard.ok) return NextResponse.json({ error: `Guardrails rejected SQL: ${guard.reason}` }, { status: 400 });
 
   const limited = enforceLimit(sql, 10000);
-  const rows = await prisma.$transaction(async (tx) => {
+  const rows = await prisma.$transaction(async (tx: any) => {
     await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = 10000`);
-    return tx.$queryRawUnsafe<any[]>(limited);
+    return tx.$queryRawUnsafe(limited) as any[];
   });
   const csv = toCSV(rows);
   return new NextResponse(csv, {

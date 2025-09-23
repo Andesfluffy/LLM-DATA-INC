@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const prisma = getPrismaForUrl(url);
 
   // Use information_schema + pg_catalog for table/column overview
-  const tables = await prisma.$queryRawUnsafe<any[]>(
+  const tables = await prisma.$queryRawUnsafe(
     `
     SELECT n.nspname as schema, c.relname as table, COALESCE(c2.reltuples::bigint, 0) as row_estimate
     FROM pg_class c
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   `
   );
 
-  const columns = await prisma.$queryRawUnsafe<any[]>(
+  const columns = await prisma.$queryRawUnsafe(
     `
     SELECT table_schema as schema, table_name as table, column_name as column, data_type, is_nullable
     FROM information_schema.columns

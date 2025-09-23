@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 - NEVER modify data. No INSERT/UPDATE/DELETE/DDL.
 - Always include an explicit LIMIT 100 if appropriate.`;
 
-  const user = `Schema:
+  const userMessage = `Schema:
 ${schema}
 
 Task: Write a single, safe SELECT for:
@@ -57,7 +57,7 @@ Output only SQL, no explanations.`;
       model,
       messages: [
         { role: "system", content: system },
-        { role: "user", content: user }
+        { role: "user", content: userMessage }
       ],
       temperature: 0.1,
     });

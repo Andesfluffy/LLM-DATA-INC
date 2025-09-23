@@ -35,8 +35,11 @@ export default function MosaicHero() {
           <Link href={{ pathname: "/", hash: "ask" }} aria-label="Ask a question">
             <Button className="shadow-md">Ask Now</Button>
           </Link>
-          <Link href="/settings/datasources">
-            <Button variant="secondary">Connect Database</Button>
+          <Link
+            href="/settings/datasources"
+            className="text-sm px-3 py-2 border border-accent text-accent rounded-xl transition hover:bg-accent/10"
+          >
+            Connect Database
           </Link>
         </div>
       </div>
