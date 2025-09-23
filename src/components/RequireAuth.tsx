@@ -126,24 +126,6 @@ export default function RequireAuth({ children, title, description }: RequireAut
                 subtitle="Google verifies every session so Data Vista stays compliant by default."
               />
               <CardBody className="space-y-5">
-                <div className="grid gap-3 rounded-2xl border border-[#2A2D3A]/70 bg-[#111726]/70 p-4 text-left text-xs text-slate-300">
-                  <span className="text-[11px] font-semibold uppercase tracking-[0.28em] text-accent">Why Google SSO</span>
-                  <ul className="space-y-2">
-                    <li className="flex items-start gap-2">
-                      <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-accent" />
-                      <p className="leading-relaxed">Verified corporate identity with automatic MFA enforcement.</p>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-accent" />
-                      <p className="leading-relaxed">Granular device trust and session expiry with no passwords to store.</p>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="mt-[6px] h-1.5 w-1.5 rounded-full bg-accent" />
-                      <p className="leading-relaxed">Instant provisioning & offboarding synced with your Google Workspace.</p>
-                    </li>
-                  </ul>
-                </div>
-
                 <Button
                   onClick={async () => {
                     setAuthenticating(true);
@@ -163,10 +145,6 @@ export default function RequireAuth({ children, title, description }: RequireAut
                   <GoogleGlyph />
                   {authenticating ? "Connecting..." : "Continue with Google"}
                 </Button>
-
-                <p className="text-[11px] text-slate-400">
-                  By continuing you accept our Terms and Privacy Policy. Questions? concierge@datavista.ai.
-                </p>
               </CardBody>
             </Card>
           </div>

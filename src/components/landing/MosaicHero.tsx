@@ -37,7 +37,7 @@ export default function MosaicHero() {
           </Link>
           <Link
             href="/settings/datasources"
-            className="text-sm px-3 py-2 border border-accent text-accent rounded-xl transition hover:bg-accent/10"
+            className="inline-flex items-center justify-center rounded-xl border border-accent px-3 py-2 text-sm font-medium text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
           >
             Connect Database
           </Link>
