@@ -1,14 +1,16 @@
-import { ReactNode } from "react";
+import { HTMLAttributes, ReactNode } from "react";
 
-export default function Card({
-  children,
-  className = "",
-}: {
+type CardProps = HTMLAttributes<HTMLDivElement> & {
   children: ReactNode;
   className?: string;
-}) {
+};
+
+export default function Card({ children, className = "", ...props }: CardProps) {
   return (
-    <div className="rounded-2xl p-[1.5px] bg-gradient-to-tr from-accent/70 via-accent/20 to-transparent">
+    <div
+      className="rounded-2xl p-[1.5px] bg-gradient-to-tr from-accent/70 via-accent/20 to-transparent"
+      {...props}
+    >
       <div className={`card rounded-2xl border border-[#2A2D3A] ${className}`}>
         {children}
       </div>
