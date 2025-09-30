@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getUserFromRequest } from "@/lib/auth-server";
+import { getUserFromRequest, getOrCreateUserOrg } from "@/lib/auth-server";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {
@@ -10,19 +10,12 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const { host, port, database, user, password, name } = parsed.data;
+  const { user: appUser, org } = await getOrCreateUserOrg(userAuth.uid, userAuth.email);
 
-  // Ensure demo org exists with fixed id
-  const demoOrgId = "demo-org";
-  await prisma.org.upsert({
-    where: { id: demoOrgId },
-    update: {},
-    create: { id: demoOrgId, name: "Demo Org" },
-  });
-
-  // Find existing DS for org by name or host/db pair
   const existing = await prisma.dataSource.findFirst({
     where: {
-      orgId: demoOrgId,
+      orgId: org.id,
+      ownerId: appUser.id,
       OR: [
         name ? { name } : undefined,
         { AND: [{ host }, { database }] },
@@ -30,11 +23,14 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  const connectionUrl = buildPgUrl({ host, port, database, user, password });
+
   const ds = existing
     ? await prisma.dataSource.update({
         where: { id: existing.id },
         data: {
-          orgId: demoOrgId,
+          orgId: org.id,
+          ownerId: appUser.id,
           type: "postgres",
           name: name || existing.name,
           host,
@@ -42,13 +38,13 @@ export async function POST(req: NextRequest) {
           database,
           user,
           password,
-          // Keep legacy url in sync for other parts of app
-          url: buildPgUrl({ host, port, database, user, password }),
+          url: connectionUrl,
         },
       })
     : await prisma.dataSource.create({
         data: {
-          orgId: demoOrgId,
+          orgId: org.id,
+          ownerId: appUser.id,
           type: "postgres",
           name: name || `${database}@${host}`,
           host,
@@ -56,11 +52,11 @@ export async function POST(req: NextRequest) {
           database,
           user,
           password,
-          url: buildPgUrl({ host, port, database, user, password }),
+          url: connectionUrl,
         },
       });
 
-  return NextResponse.json({ id: ds.id });
+  return NextResponse.json({ id: ds.id, orgId: org.id });
 }
 
 function buildPgUrl(p: { host: string; port: number | string; database: string; user: string; password?: string }) {

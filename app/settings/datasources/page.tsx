@@ -1,9 +1,10 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
 import RequireAuth from "@/src/components/RequireAuth";
+import { useActiveDataSource } from "@/src/hooks/useActiveDataSource";
 
 type FormState = {
   name: string;
@@ -31,6 +32,21 @@ export default function DataSourcesSettingsPage() {
   const [testMsg, setTestMsg] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState<boolean | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const { data: active, refresh: refreshActive } = useActiveDataSource();
+
+  useEffect(() => {
+    if (active?.datasource) {
+      const ds = active.datasource;
+      setForm({
+        name: ds.name || "",
+        host: ds.host || "",
+        port: ds.port != null ? String(ds.port) : "",
+        database: ds.database || "",
+        user: ds.user || "",
+        password: "",
+      });
+    }
+  }, [active]);
 
   function update<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: val }));
@@ -97,10 +113,7 @@ export default function DataSourcesSettingsPage() {
       } else {
         setSaveOk(true);
         setSaveMsg("Saved");
-        if (payload?.id) {
-          localStorage.setItem("orgId", "demo-org");
-          localStorage.setItem("datasourceId", payload.id);
-        }
+        await refreshActive();
       }
     } catch (error: any) {
       setSaveOk(false);
@@ -120,7 +133,9 @@ export default function DataSourcesSettingsPage() {
           <Card>
             <CardHeader
               title="Connection"
-              subtitle="Configure a Postgres connection for Data Vista (org demo-org)"
+              subtitle={
+                `Configure a Postgres connection for Data Vista (org ${active?.org?.name || "personal workspace"})`
+              }
             />
             <CardBody>
               <div className="space-y-4">

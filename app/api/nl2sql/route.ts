@@ -3,30 +3,34 @@ import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
 import { getSchemaSummary } from "@/lib/schema";
 import { openaiClient, pickModel } from "@/lib/openai";
 import { validateSql, enforceLimit } from "@/lib/guardrails";
-import { getUserFromRequest } from "@/lib/auth-server";
+import { getUserOrgFromRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
   const t0 = Date.now();
-  const user = await getUserFromRequest(req);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const context = await getUserOrgFromRequest(req);
+  if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const Body = z.object({ orgId: z.string().min(1), datasourceId: z.string().min(1), prompt: z.string().min(1) });
+  const { user, org } = context;
+
+  const Body = z.object({ datasourceId: z.string().min(1), prompt: z.string().min(1) });
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  const { orgId, datasourceId, prompt } = parsed.data;
+  const { datasourceId, prompt } = parsed.data;
 
   // Resolve data source URL
-  const ds = await appPrisma.dataSource.findFirst({ where: { id: datasourceId || undefined, orgId: orgId || undefined } });
-  if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
+  const ds = await appPrisma.dataSource.findUnique({ where: { id: datasourceId } });
+  if (!ds || ds.orgId !== org.id || (ds.ownerId && ds.ownerId !== user.id)) {
+    return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
+  }
   const url = ds.url || buildPgUrl(ds);
   const prisma = getPrismaForUrl(url);
   const schema = await getSchemaSummary(prisma, url);
   const schemaHash = crypto.createHash('sha256').update(schema).digest('hex');
 
   // NL→SQL cache (30s)
-  const key = `${orgId}|${schemaHash}|${crypto.createHash('sha256').update(prompt).digest('hex')}`;
+  const key = `${org.id}|${schemaHash}|${crypto.createHash('sha256').update(prompt).digest('hex')}`;
   if (nlCache.has(key)) {
     const item = nlCache.get(key)!;
     if (item.expiresAt > Date.now()) {
@@ -64,19 +68,19 @@ Output only SQL, no explanations.`;
     generated = (resp.choices?.[0]?.message?.content || "").trim();
   } catch (e: any) {
     // Audit
-    await appPrisma.auditLog.create({ data: { orgId: orgId || ds.orgId!, userId: null, question: prompt, sql: null, durationMs: Date.now() - t0, rowCount: null } });
+    await appPrisma.auditLog.create({ data: { orgId: org.id, userId: user.id, question: prompt, sql: null, durationMs: Date.now() - t0, rowCount: null } });
     return NextResponse.json({ error: "LLM error" }, { status: 500 });
   }
 
   const allowedTables = await getAllowedTables(prisma);
   const guard = validateSql(generated, allowedTables);
   if (!guard.ok) {
-    await appPrisma.auditLog.create({ data: { orgId: orgId || ds.orgId!, userId: null, question: prompt, sql: generated, durationMs: Date.now() - t0, rowCount: null } });
+    await appPrisma.auditLog.create({ data: { orgId: org.id, userId: user.id, question: prompt, sql: generated, durationMs: Date.now() - t0, rowCount: null } });
     return NextResponse.json({ error: `Guardrails rejected SQL: ${guard.reason}` }, { status: 400 });
   }
 
   const limited = enforceLimit(generated, 1000);
-  await appPrisma.auditLog.create({ data: { orgId: orgId || ds.orgId!, userId: null, question: prompt, sql: limited, durationMs: Date.now() - t0, rowCount: null } });
+  await appPrisma.auditLog.create({ data: { orgId: org.id, userId: user.id, question: prompt, sql: limited, durationMs: Date.now() - t0, rowCount: null } });
   nlCache.set(key, { sql: limited, expiresAt: Date.now() + 30_000 });
   return NextResponse.json({ sql: limited });
 }

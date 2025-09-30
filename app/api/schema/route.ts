@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
-import { getUserFromRequest } from "@/lib/auth-server";
+import { getUserOrgFromRequest } from "@/lib/auth-server";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
-  const user = await getUserFromRequest(req);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const context = await getUserOrgFromRequest(req);
+  if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { user, org } = context;
   const search = Object.fromEntries(req.nextUrl.searchParams.entries());
-  const Query = z.object({ orgId: z.string().min(1), datasourceId: z.string().min(1) });
+  const Query = z.object({ datasourceId: z.string().min(1) });
   const parsed = Query.safeParse(search);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  const { orgId, datasourceId } = parsed.data;
-  const ds = await appPrisma.dataSource.findFirst({ where: { id: datasourceId, orgId } });
-  if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
+  const { datasourceId } = parsed.data;
+  const ds = await appPrisma.dataSource.findUnique({ where: { id: datasourceId } });
+  if (!ds || ds.orgId !== org.id || (ds.ownerId && ds.ownerId !== user.id)) {
+    return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
+  }
   const url = ds.url || buildPgUrl(ds);
   const prisma = getPrismaForUrl(url);
 

@@ -13,6 +13,7 @@ import RequireAuth from "@/src/components/RequireAuth";
 import MosaicHero from "@/src/components/landing/MosaicHero";
 import FeatureGrid from "@/src/components/landing/FeatureGrid";
 import HowItWorks from "@/src/components/landing/HowItWorks";
+import { useActiveDataSource } from "@/src/hooks/useActiveDataSource";
 
 type QueryResult = { sql: string; fields: string[]; rows: any[] };
 
@@ -20,27 +21,19 @@ export default function HomePage() {
   const [result, setResult] = useState<QueryResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [hasDs, setHasDs] = useState(false);
   const [view, setView] = useState<"table" | "chart">("table");
+  const { data: active, refresh: refreshActive } = useActiveDataSource();
+  const hasDs = !!active?.datasource;
 
   useEffect(() => {
-    const refresh = () => {
-      try {
-        const dsId = localStorage.getItem("datasourceId");
-        setHasDs(!!dsId);
-      } catch {
-        setHasDs(false);
-      }
+    const handler = () => {
+      refreshActive();
     };
-
-    refresh();
-    window.addEventListener("focus", refresh);
-    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", handler);
     return () => {
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", handler);
     };
-  }, []);
+  }, [refreshActive]);
 
   async function onAsk(rawPrompt: string) {
     const prompt = rawPrompt.trim();
@@ -50,14 +43,13 @@ export default function HomePage() {
     setError(null);
     setResult(null);
     try {
-      const orgId = localStorage.getItem("orgId") || "demo-org";
-      const datasourceId = localStorage.getItem("datasourceId");
+      const datasourceId = active?.datasource?.id;
       if (!datasourceId) { setError("Please configure a data source in Settings."); setBusy(false); return; }
       const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
       const res = await fetch("/api/query", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
-        body: JSON.stringify({ orgId, datasourceId, question: prompt }),
+        body: JSON.stringify({ datasourceId, question: prompt }),
       });
       const d = await res.json();
       if (!res.ok) { setError(d?.error || "Request failed"); toast.error(d?.error || "Request failed"); }

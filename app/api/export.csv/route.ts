@@ -2,20 +2,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
 import { validateSql, enforceLimit } from "@/lib/guardrails";
 import { toCSV } from "@/lib/csv";
-import { getUserFromRequest } from "@/lib/auth-server";
+import { getUserOrgFromRequest } from "@/lib/auth-server";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {
-  const user = await getUserFromRequest(req);
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const Body = z.object({ orgId: z.string().min(1), datasourceId: z.string().min(1), sql: z.string().min(1) });
+  const context = await getUserOrgFromRequest(req);
+  if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { user, org } = context;
+  const Body = z.object({ datasourceId: z.string().min(1), sql: z.string().min(1) });
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  const { orgId, datasourceId, sql } = parsed.data;
+  const { datasourceId, sql } = parsed.data;
   if (!sql) return NextResponse.json({ error: "Missing sql" }, { status: 400 });
 
-  const ds = await appPrisma.dataSource.findFirst({ where: { id: datasourceId || undefined, orgId: orgId || undefined } });
-  if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
+  const ds = await appPrisma.dataSource.findUnique({ where: { id: datasourceId } });
+  if (!ds || ds.orgId !== org.id || (ds.ownerId && ds.ownerId !== user.id)) {
+    return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
+  }
   const url = ds.url || buildPgUrl(ds);
   const prisma = getPrismaForUrl(url);
   const allowedTables = await getAllowedTables(prisma);

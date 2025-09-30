@@ -1,12 +1,12 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import ErrorAlert from "@/components/ui/error-alert";
 import EmptyState from "@/components/ui/empty-state";
-import { TableSkeleton } from "@/components/ui/skeleton";
 import Button from "@/src/components/Button";
 import Table from "@/src/components/Table";
 import Chart from "@/src/components/Chart";
+import { useActiveDataSource } from "@/src/hooks/useActiveDataSource";
 
 type Row = Record<string, any>;
 
@@ -18,14 +18,24 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
   const [busyRun, setBusyRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"table" | "chart">("table");
+  const { data: active, refresh: refreshActive } = useActiveDataSource();
+  const datasourceId = active?.datasource?.id || null;
+
+  useEffect(() => {
+    const handler = () => {
+      refreshActive();
+    };
+    window.addEventListener("focus", handler);
+    return () => {
+      window.removeEventListener("focus", handler);
+    };
+  }, [refreshActive]);
 
   async function generate() {
     setBusyGen(true); setError(null); setRows(null);
-    const orgId = localStorage.getItem("orgId") || "demo-org";
-    const datasourceId = localStorage.getItem("datasourceId");
     if (!datasourceId) { setBusyGen(false); setError("Please save a data source in Settings."); return; }
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
-    const res = await fetch("/api/nl2sql", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, prompt }) });
+    const res = await fetch("/api/nl2sql", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ datasourceId, prompt }) });
     setBusyGen(false);
     if (!res.ok) { setError((await res.json()).error || "Failed"); return; }
     const data = await res.json();
@@ -34,11 +44,9 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
 
   async function run() {
     setBusyRun(true); setError(null); setRows(null);
-    const orgId = localStorage.getItem("orgId") || "demo-org";
-    const datasourceId = localStorage.getItem("datasourceId");
     if (!datasourceId) { setBusyRun(false); setError("Please save a data source in Settings."); return; }
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
-    const res = await fetch("/api/execute", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, sql }) });
+    const res = await fetch("/api/execute", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ datasourceId, sql }) });
     setBusyRun(false);
     if (!res.ok) { setError((await res.json()).error || "Failed"); return; }
     const data = await res.json();
@@ -46,10 +54,9 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
   }
 
   async function exportCsv() {
-    const orgId = localStorage.getItem("orgId") || "demo-org";
-    const datasourceId = localStorage.getItem("datasourceId");
+    if (!datasourceId) { setError("Please save a data source in Settings."); return; }
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
-    const res = await fetch("/api/export.csv", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, sql }) });
+    const res = await fetch("/api/export.csv", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ datasourceId, sql }) });
     if (!res.ok) { setError((await res.json()).error || "Failed"); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
@@ -67,7 +74,7 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
             <label className="block text-sm font-medium text-gray-700">Question</label>
             <textarea className="border rounded-md w-full px-3 py-2" rows={3} value={prompt} onChange={(e)=>setPrompt(e.target.value)} placeholder="e.g. Top 10 customers by revenue last quarter" />
             <div className="mt-2 flex gap-2">
-              <Button onClick={generate} disabled={!canRun || busyGen || !prompt.trim()}>{busyGen?"Generating…":"Generate SQL"}</Button>
+              <Button onClick={generate} disabled={!canRun || busyGen || !prompt.trim() || !datasourceId}>{busyGen?"Generating…":"Generate SQL"}</Button>
             </div>
           </div>
           {error && <div className="mt-3"><ErrorAlert message={error} /></div>}
@@ -79,8 +86,8 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
         <CardBody>
           <textarea className="border rounded-md w-full px-3 py-2 font-mono" rows={8} value={sql} onChange={(e)=>setSql(e.target.value)} placeholder="SELECT ..." />
           <div className="mt-2 flex gap-2">
-            <Button onClick={run} disabled={!canRun || busyRun || !sql.trim()}>{busyRun?"Running…":"Run"}</Button>
-            <Button onClick={exportCsv} disabled={!canRun || busyRun || !sql.trim()} variant="secondary">Export CSV</Button>
+            <Button onClick={run} disabled={!canRun || busyRun || !sql.trim() || !datasourceId}>{busyRun?"Running…":"Run"}</Button>
+            <Button onClick={exportCsv} disabled={!canRun || busyRun || !sql.trim() || !datasourceId} variant="secondary">Export CSV</Button>
           </div>
         </CardBody>
       </Card>

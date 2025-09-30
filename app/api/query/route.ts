@@ -4,20 +4,23 @@ import { Client } from "pg";
 import { getSchemaDDL } from "@/src/server/schemaIntrospect";
 import { nlToSql } from "@/src/server/generateSql";
 import { enforceLimit, isSelectOnly } from "@/src/server/sqlGuard";
-import { getUserFromRequest } from "@/lib/auth-server";
+import { getUserOrgFromRequest } from "@/lib/auth-server";
 import { z } from "zod";
 import crypto from "crypto";
 
 export async function POST(req: NextRequest) {
-  const userAuth = await getUserFromRequest(req);
-  if (!userAuth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const Body = z.object({ orgId: z.string().min(1), datasourceId: z.string().min(1), question: z.string().min(1) });
+  const context = await getUserOrgFromRequest(req);
+  if (!context) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const { user, org } = context;
+  const Body = z.object({ datasourceId: z.string().min(1), question: z.string().min(1) });
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  const { orgId, datasourceId, question } = parsed.data;
+  const { datasourceId, question } = parsed.data;
 
-  const ds = await prisma.dataSource.findFirst({ where: { id: datasourceId, orgId } });
-  if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
+  const ds = await prisma.dataSource.findUnique({ where: { id: datasourceId } });
+  if (!ds || ds.orgId !== org.id || (ds.ownerId && ds.ownerId !== user.id)) {
+    return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
+  }
   if (ds.type !== "postgres") return NextResponse.json({ error: "Only postgres type supported" }, { status: 400 });
 
   const client = new Client({
@@ -36,7 +39,7 @@ export async function POST(req: NextRequest) {
     const schemaKey = `${ds.host}:${ds.port}:${ds.database}:${ds.user}`;
     const schema = await getSchemaDDL({ query: (sql: string) => client.query(sql) }, schemaKey);
     const schemaHash = crypto.createHash('sha256').update(schema).digest('hex');
-    const cacheKey = `${orgId}|${schemaHash}|${crypto.createHash('sha256').update(question).digest('hex')}`;
+    const cacheKey = `${org.id}|${schemaHash}|${crypto.createHash('sha256').update(question).digest('hex')}`;
     let sqlRaw: string;
     const hit = nlCache.get(cacheKey);
     if (hit && hit.expiresAt > Date.now()) {
@@ -59,8 +62,8 @@ export async function POST(req: NextRequest) {
     const durationMs = Date.now() - t0;
     await prisma.auditLog.create({
       data: {
-        orgId,
-        userId: null,
+        orgId: org.id,
+        userId: user.id,
         question,
         sql,
         durationMs,
