@@ -3,6 +3,7 @@ import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
 import { validateSql, enforceLimit } from "@/lib/guardrails";
 import { toCSV } from "@/lib/csv";
 import { getUserFromRequest } from "@/lib/auth-server";
+import { getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {
@@ -16,7 +17,13 @@ export async function POST(req: NextRequest) {
 
   const ds = await appPrisma.dataSource.findFirst({ where: { id: datasourceId || undefined, orgId: orgId || undefined } });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
-  const url = ds.url || buildPgUrl(ds);
+  let url: string;
+  try {
+    url = getDataSourceConnectionUrl(ds);
+  } catch (error) {
+    console.error("Failed to resolve data source connection", error);
+    return NextResponse.json({ error: "Data source credentials unavailable" }, { status: 500 });
+  }
   const prisma = getPrismaForUrl(url);
   const allowedTables = await getAllowedTables(prisma);
   const guard = validateSql(sql, allowedTables);
@@ -44,11 +51,4 @@ async function getAllowedTables(prisma: any): Promise<string[]> {
        AND table_type = 'BASE TABLE'`
   );
   return rows.map((r) => (r.schema === 'public' ? r.table : `${r.schema}.${r.table}`));
-}
-
-function buildPgUrl(ds: any) {
-  if (!ds?.host || !ds?.database || !ds?.user) return process.env.DEFAULT_DATASOURCE_URL || process.env.DATABASE_URL!;
-  const enc = encodeURIComponent;
-  const pwd = ds.password ? `:${enc(ds.password)}` : "";
-  return `postgresql://${enc(ds.user)}${pwd}@${ds.host}:${ds.port ?? 5432}/${ds.database}`;
 }

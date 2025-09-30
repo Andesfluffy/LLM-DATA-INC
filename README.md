@@ -15,6 +15,7 @@ Next.js (App Router) + TypeScript + Tailwind + Prisma + OpenAI + Postgres. Inclu
 ## Environment
 Required:
 - `DATABASE_URL` – Postgres for app data (Prisma models, settings, audit logs)
+- `DATASOURCE_SECRET_KEY` – 32-byte key (hex, base64, or raw string) for encrypting data source credentials
 - `OPENAI_API_KEY` – OpenAI key for NL→SQL
 - `NEXTAUTH_SECRET` – If using NextAuth; generate: `openssl rand -base64 32`
 - `NEXTAUTH_URL` – e.g. `http://localhost:3000`
@@ -42,6 +43,7 @@ Other optional:
 2) Push repo to GitHub and import into Vercel.
 3) In Vercel Project → Settings → Environment Variables, set at minimum:
    - `DATABASE_URL` (app DB, e.g., Neon)
+   - `DATASOURCE_SECRET_KEY` (32-byte secret used for AES-256-GCM encryption; generate with `openssl rand -base64 32`)
    - `OPENAI_API_KEY`
    - `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (if you opt to use NextAuth)
    - For Firebase auth (as implemented here): `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_*`
@@ -78,4 +80,5 @@ Use the UI (home page or /query) with the demo seed (products/sales) to validate
 ## Notes
 - Guardrails: regex-based checks enforce single SELECT and append LIMIT if missing. For stronger guarantees, integrate a SQL parser.
 - Data sources are saved under a demo org (`demo-org`) for simplicity in this MVP.
+- Data source passwords/connection strings are encrypted at rest using AES-256-GCM and the `DATASOURCE_SECRET_KEY`.
 - Seed data script: `seed-demo-data.sql` creates `products` and `sales` with sample rows across ~30 days.

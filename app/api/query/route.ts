@@ -5,6 +5,7 @@ import { getSchemaDDL } from "@/src/server/schemaIntrospect";
 import { nlToSql } from "@/src/server/generateSql";
 import { enforceLimit, isSelectOnly } from "@/src/server/sqlGuard";
 import { getUserFromRequest } from "@/lib/auth-server";
+import { decryptDataSourcePassword, getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
 import { z } from "zod";
 import crypto from "crypto";
 
@@ -20,13 +21,25 @@ export async function POST(req: NextRequest) {
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
   if (ds.type !== "postgres") return NextResponse.json({ error: "Only postgres type supported" }, { status: 400 });
 
+  let password: string | null = null;
+  let connectionString: string | undefined;
+  try {
+    password = decryptDataSourcePassword(ds);
+    if (ds.urlCiphertext || !ds.host || !ds.database || !ds.user) {
+      connectionString = getDataSourceConnectionUrl(ds);
+    }
+  } catch (error) {
+    console.error("Failed to resolve data source credentials", error);
+    return NextResponse.json({ error: "Data source credentials unavailable" }, { status: 500 });
+  }
+
   const client = new Client({
     host: ds.host || undefined,
     port: ds.port || undefined,
     database: ds.database || undefined,
     user: ds.user || undefined,
-    password: ds.password || undefined,
-    connectionString: ds.url || undefined,
+    password: password || undefined,
+    connectionString,
     ssl: process.env.PGSSL === 'true' ? { rejectUnauthorized: false } : undefined,
   });
 
