@@ -4,6 +4,7 @@ import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
 import RequireAuth from "@/src/components/RequireAuth";
+import { fetchAccessibleDataSources } from "@/src/lib/datasourceClient";
 
 type FormState = {
   name: string;
@@ -32,6 +33,8 @@ export default function DataSourcesSettingsPage() {
   const [saveOk, setSaveOk] = useState<boolean | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [orgId, setOrgId] = useState<string | null>(null);
+  const [loadingExisting, setLoadingExisting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -39,6 +42,51 @@ export default function DataSourcesSettingsPage() {
     } catch {
       setOrgId(null);
     }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadExisting() {
+      setLoadingExisting(true);
+      setLoadError(null);
+      try {
+        const list = await fetchAccessibleDataSources();
+        if (cancelled) return;
+        if (list.length > 0) {
+          const existing = list[0]!;
+          setForm({
+            name: existing.name || "",
+            host: existing.host || "",
+            port: existing.port ? String(existing.port) : "",
+            database: existing.database || "",
+            user: existing.user || "",
+            password: "",
+          });
+          if (existing.orgId) {
+            localStorage.setItem("orgId", existing.orgId);
+            setOrgId(existing.orgId);
+          }
+          localStorage.setItem("datasourceId", existing.id);
+          setSaveOk(true);
+          setSaveMsg("Loaded saved connection");
+        }
+      } catch (error: any) {
+        if (!cancelled) {
+          setLoadError(String(error?.message || error));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingExisting(false);
+        }
+      }
+    }
+
+    loadExisting();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function update<K extends keyof FormState>(key: K, val: FormState[K]) {
@@ -145,6 +193,12 @@ export default function DataSourcesSettingsPage() {
             />
             <CardBody>
               <div className="space-y-6">
+                {loadingExisting && (
+                  <p className="text-sm text-gray-400">Loading saved connection…</p>
+                )}
+                {loadError && (
+                  <p role="alert" className="text-sm text-rose-300">{loadError}</p>
+                )}
                 <div className="rounded-lg border border-[#2A2D3A] bg-[#0B0F12]/40 p-4">
                   <p className="text-sm font-medium text-gray-200">Before you save, make sure you:</p>
                   <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-gray-300">
