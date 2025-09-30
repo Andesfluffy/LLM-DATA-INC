@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
@@ -31,6 +31,15 @@ export default function DataSourcesSettingsPage() {
   const [testMsg, setTestMsg] = useState<string | null>(null);
   const [saveOk, setSaveOk] = useState<boolean | null>(null);
   const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [orgId, setOrgId] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      setOrgId(localStorage.getItem("orgId"));
+    } catch {
+      setOrgId(null);
+    }
+  }, []);
 
   function update<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: val }));
@@ -98,7 +107,10 @@ export default function DataSourcesSettingsPage() {
         setSaveOk(true);
         setSaveMsg("Saved");
         if (payload?.id) {
-          localStorage.setItem("orgId", "demo-org");
+          if (payload?.orgId) {
+            localStorage.setItem("orgId", payload.orgId);
+            setOrgId(payload.orgId);
+          }
           localStorage.setItem("datasourceId", payload.id);
         }
       }
@@ -120,7 +132,11 @@ export default function DataSourcesSettingsPage() {
           <Card>
             <CardHeader
               title="Connection"
-              subtitle="Configure a Postgres connection for Data Vista (org demo-org)"
+              subtitle={
+                orgId
+                  ? `Configure a Postgres connection for Data Vista (org ${orgId})`
+                  : "Configure a Postgres connection for Data Vista"
+              }
             />
             <CardBody>
               <div className="space-y-4">

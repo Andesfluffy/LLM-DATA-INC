@@ -21,9 +21,9 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
 
   async function generate() {
     setBusyGen(true); setError(null); setRows(null);
-    const orgId = localStorage.getItem("orgId") || "demo-org";
+    const orgId = localStorage.getItem("orgId");
     const datasourceId = localStorage.getItem("datasourceId");
-    if (!datasourceId) { setBusyGen(false); setError("Please save a data source in Settings."); return; }
+    if (!orgId || !datasourceId) { setBusyGen(false); setError("Please save a data source in Settings."); return; }
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
     const res = await fetch("/api/nl2sql", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, prompt }) });
     setBusyGen(false);
@@ -34,9 +34,9 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
 
   async function run() {
     setBusyRun(true); setError(null); setRows(null);
-    const orgId = localStorage.getItem("orgId") || "demo-org";
+    const orgId = localStorage.getItem("orgId");
     const datasourceId = localStorage.getItem("datasourceId");
-    if (!datasourceId) { setBusyRun(false); setError("Please save a data source in Settings."); return; }
+    if (!orgId || !datasourceId) { setBusyRun(false); setError("Please save a data source in Settings."); return; }
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
     const res = await fetch("/api/execute", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, sql }) });
     setBusyRun(false);
@@ -46,8 +46,9 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
   }
 
   async function exportCsv() {
-    const orgId = localStorage.getItem("orgId") || "demo-org";
+    const orgId = localStorage.getItem("orgId");
     const datasourceId = localStorage.getItem("datasourceId");
+    if (!orgId || !datasourceId) { setError("Please save a data source in Settings."); return; }
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
     const res = await fetch("/api/export.csv", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, sql }) });
     if (!res.ok) { setError((await res.json()).error || "Failed"); return; }

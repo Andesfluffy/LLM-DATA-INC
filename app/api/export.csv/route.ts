@@ -4,6 +4,7 @@ import { validateSql, enforceLimit } from "@/lib/guardrails";
 import { toCSV } from "@/lib/csv";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
+import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {
@@ -13,9 +14,10 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const { orgId, datasourceId, sql } = parsed.data;
+  const { user: dbUser } = await ensureUserAndOrg(user);
   if (!sql) return NextResponse.json({ error: "Missing sql" }, { status: 400 });
 
-  const ds = await appPrisma.dataSource.findFirst({ where: { id: datasourceId || undefined, orgId: orgId || undefined } });
+  const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
   let url: string;
   try {

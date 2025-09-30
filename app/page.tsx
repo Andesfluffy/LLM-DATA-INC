@@ -27,7 +27,8 @@ export default function HomePage() {
     const refresh = () => {
       try {
         const dsId = localStorage.getItem("datasourceId");
-        setHasDs(!!dsId);
+        const orgId = localStorage.getItem("orgId");
+        setHasDs(Boolean(dsId && orgId));
       } catch {
         setHasDs(false);
       }
@@ -50,9 +51,9 @@ export default function HomePage() {
     setError(null);
     setResult(null);
     try {
-      const orgId = localStorage.getItem("orgId") || "demo-org";
+      const orgId = localStorage.getItem("orgId");
       const datasourceId = localStorage.getItem("datasourceId");
-      if (!datasourceId) { setError("Please configure a data source in Settings."); setBusy(false); return; }
+      if (!orgId || !datasourceId) { setError("Please configure a data source in Settings."); setBusy(false); return; }
       const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
       const res = await fetch("/api/query", {
         method: "POST",

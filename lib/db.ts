@@ -4,7 +4,12 @@ import { getDataSourceConnectionUrl } from "./datasourceSecrets";
 type PrismaClientLike = any;
 
 let _appClient: PrismaClientLike | null = null;
+let overrideAppClient: PrismaClientLike | null = null;
+
 function getAppClient(): PrismaClientLike {
+  if (overrideAppClient) {
+    return overrideAppClient;
+  }
   if (!_appClient) {
     // Use require to avoid static import at build time
     const { PrismaClient } = require("@prisma/client");
@@ -20,6 +25,13 @@ export const prisma = new Proxy({}, {
     return getAppClient()[p];
   },
 }) as PrismaClientLike;
+
+export function setAppPrismaClientForTesting(client: PrismaClientLike | null) {
+  overrideAppClient = client;
+  if (!client) {
+    _appClient = null;
+  }
+}
 
 // Cache Prisma clients per URL for data source querying
 const clientCache = new Map<string, PrismaClientLike>();

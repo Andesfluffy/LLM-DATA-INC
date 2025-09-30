@@ -3,6 +3,7 @@ import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
 import { validateSql, enforceLimit } from "@/lib/guardrails";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
+import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {
@@ -13,8 +14,9 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const { orgId, datasourceId, sql } = parsed.data;
+  const { user: dbUser, org } = await ensureUserAndOrg(user);
 
-  const ds = await appPrisma.dataSource.findFirst({ where: { id: datasourceId || undefined, orgId: orgId || undefined } });
+  const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
   let url: string;
   try {
@@ -35,10 +37,10 @@ export async function POST(req: NextRequest) {
       const r = await tx.$queryRawUnsafe(limited) as any[];
       return r;
     });
-    await appPrisma.auditLog.create({ data: { orgId: orgId || ds.orgId!, userId: null, question: "", sql: limited, durationMs: Date.now() - t0, rowCount: rows.length } });
+    await appPrisma.auditLog.create({ data: { orgId: ds.orgId ?? org.id, userId: dbUser.id, question: "", sql: limited, durationMs: Date.now() - t0, rowCount: rows.length } });
     return NextResponse.json({ rows });
   } catch (e: any) {
-    await appPrisma.auditLog.create({ data: { orgId: orgId || ds.orgId!, userId: null, question: "", sql: limited, durationMs: Date.now() - t0, rowCount: null } });
+    await appPrisma.auditLog.create({ data: { orgId: ds.orgId ?? org.id, userId: dbUser.id, question: "", sql: limited, durationMs: Date.now() - t0, rowCount: null } });
     const msg = String(e?.message || e);
     const isTimeout = /statement timeout|canceling statement/i.test(msg);
     return NextResponse.json({ error: isTimeout ? "Query timed out after 10s" : "Query failed" }, { status: isTimeout ? 504 : 500 });
