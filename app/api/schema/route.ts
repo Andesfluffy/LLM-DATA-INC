@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
+import { getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -13,7 +14,13 @@ export async function GET(req: NextRequest) {
   const { orgId, datasourceId } = parsed.data;
   const ds = await appPrisma.dataSource.findFirst({ where: { id: datasourceId, orgId } });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
-  const url = ds.url || buildPgUrl(ds);
+  let url: string;
+  try {
+    url = getDataSourceConnectionUrl(ds);
+  } catch (error) {
+    console.error("Failed to resolve data source connection", error);
+    return NextResponse.json({ error: "Data source credentials unavailable" }, { status: 500 });
+  }
   const prisma = getPrismaForUrl(url);
 
   // Use information_schema + pg_catalog for table/column overview
@@ -38,11 +45,4 @@ export async function GET(req: NextRequest) {
   );
 
   return NextResponse.json({ tables, columns });
-}
-
-function buildPgUrl(ds: any) {
-  if (!ds?.host || !ds?.database || !ds?.user) return process.env.DEFAULT_DATASOURCE_URL || process.env.DATABASE_URL!;
-  const enc = encodeURIComponent;
-  const pwd = ds.password ? `:${enc(ds.password)}` : "";
-  return `postgresql://${enc(ds.user)}${pwd}@${ds.host}:${ds.port ?? 5432}/${ds.database}`;
 }

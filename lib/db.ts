@@ -1,3 +1,5 @@
+import { getDataSourceConnectionUrl } from "./datasourceSecrets";
+
 // Lazy-load Prisma to avoid initializing the native engine during Next build.
 type PrismaClientLike = any;
 
@@ -35,5 +37,21 @@ export function getPrismaForUrl(url: string): PrismaClientLike {
 
 export async function getActiveDataSourceUrlForUser(userId: string): Promise<string> {
   const ds = await prisma.dataSource.findFirst({ where: { ownerId: userId } });
-  return ds?.url || process.env.DEFAULT_DATASOURCE_URL || process.env.DATABASE_URL!;
+  if (!ds) {
+    const fallback = process.env.DEFAULT_DATASOURCE_URL || process.env.DATABASE_URL;
+    if (!fallback) {
+      throw new Error("No active data source configured and no fallback DATABASE_URL present");
+    }
+    return fallback;
+  }
+  try {
+    return getDataSourceConnectionUrl(ds);
+  } catch (error) {
+    console.error("Failed to resolve active data source URL", error);
+    const fallback = process.env.DEFAULT_DATASOURCE_URL || process.env.DATABASE_URL;
+    if (!fallback) {
+      throw new Error("Unable to resolve encrypted data source URL and no fallback available");
+    }
+    return fallback;
+  }
 }

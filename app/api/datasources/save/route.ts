@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
+import { encryptPassword } from "@/lib/datasourceSecrets";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {
@@ -9,7 +10,33 @@ export async function POST(req: NextRequest) {
   const Body = z.object({ name: z.string().min(1), host: z.string().min(1), port: z.coerce.number().int().positive(), database: z.string().min(1), user: z.string().min(1), password: z.string().optional() });
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  const { host, port, database, user, password, name } = parsed.data;
+  const body = parsed.data;
+  const { host, port, database, user, name } = body;
+  const hasPassword = Object.prototype.hasOwnProperty.call(body, "password");
+  const password = hasPassword ? body.password : undefined;
+
+  let passwordFields: Partial<Record<string, string | null>> = {};
+  if (hasPassword) {
+    if (password) {
+      try {
+        const encrypted = encryptPassword(password);
+        passwordFields = {
+          passwordCiphertext: encrypted.ciphertext,
+          passwordIv: encrypted.iv,
+          passwordTag: encrypted.authTag,
+        };
+      } catch (error) {
+        console.error("Failed to encrypt data source password", error);
+        return NextResponse.json({ error: "Server encryption key misconfigured" }, { status: 500 });
+      }
+    } else {
+      passwordFields = {
+        passwordCiphertext: null,
+        passwordIv: null,
+        passwordTag: null,
+      };
+    }
+  }
 
   // Ensure demo org exists with fixed id
   const demoOrgId = "demo-org";
@@ -41,9 +68,10 @@ export async function POST(req: NextRequest) {
           port: Number(port),
           database,
           user,
-          password,
-          // Keep legacy url in sync for other parts of app
-          url: buildPgUrl({ host, port, database, user, password }),
+          ...passwordFields,
+          urlCiphertext: null,
+          urlIv: null,
+          urlTag: null,
         },
       })
     : await prisma.dataSource.create({
@@ -55,16 +83,12 @@ export async function POST(req: NextRequest) {
           port: Number(port),
           database,
           user,
-          password,
-          url: buildPgUrl({ host, port, database, user, password }),
+          ...passwordFields,
+          urlCiphertext: null,
+          urlIv: null,
+          urlTag: null,
         },
       });
 
   return NextResponse.json({ id: ds.id });
-}
-
-function buildPgUrl(p: { host: string; port: number | string; database: string; user: string; password?: string }) {
-  const enc = encodeURIComponent;
-  const pwd = p.password ? `:${enc(p.password)}` : "";
-  return `postgresql://${enc(p.user)}${pwd}@${p.host}:${p.port}/${p.database}`;
 }

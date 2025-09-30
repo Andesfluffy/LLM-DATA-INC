@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
 
 type Params = {
   userId: string;
@@ -15,10 +16,18 @@ type Params = {
 export async function recordAudit(p: Params) {
   // Link to DataSource if exists for the owner/dataSourceUrl pair (best-effort)
   const ds = await prisma.dataSource.findFirst({ where: { ownerId: p.userId } });
+  let matchesUrl = false;
+  if (ds) {
+    try {
+      matchesUrl = getDataSourceConnectionUrl(ds) === p.dataSourceUrl;
+    } catch (error) {
+      console.warn("Failed to resolve data source URL during audit", error);
+    }
+  }
   await prisma.queryAudit.create({
     data: {
       userId: p.userId,
-      dataSourceId: ds?.url === p.dataSourceUrl ? ds.id : ds?.id || null,
+      dataSourceId: matchesUrl && ds ? ds.id : null,
       nlQuery: p.nlQuery,
       generatedSql: p.generatedSql,
       executedSql: p.executedSql,
