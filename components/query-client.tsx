@@ -7,6 +7,7 @@ import { TableSkeleton } from "@/components/ui/skeleton";
 import Button from "@/src/components/Button";
 import Table from "@/src/components/Table";
 import Chart from "@/src/components/Chart";
+import { fetchAccessibleDataSources } from "@/src/lib/datasourceClient";
 
 type Row = Record<string, any>;
 
@@ -19,11 +20,39 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"table" | "chart">("table");
 
+  async function ensureConnectionIds(): Promise<{ orgId: string; datasourceId: string } | null> {
+    try {
+      let orgId = localStorage.getItem("orgId");
+      let datasourceId = localStorage.getItem("datasourceId");
+      if (orgId && datasourceId) {
+        return { orgId, datasourceId };
+      }
+      const list = await fetchAccessibleDataSources();
+      if (list.length > 0) {
+        const first = list[0]!;
+        datasourceId = first.id;
+        orgId = first.orgId || null;
+        localStorage.setItem("datasourceId", datasourceId);
+        if (first.orgId) {
+          localStorage.setItem("orgId", first.orgId);
+        }
+      }
+      if (orgId && datasourceId) {
+        return { orgId, datasourceId };
+      }
+    } catch (err: any) {
+      setError(String(err?.message || err));
+      return null;
+    }
+    setError("Please save a data source in Settings.");
+    return null;
+  }
+
   async function generate() {
     setBusyGen(true); setError(null); setRows(null);
-    const orgId = localStorage.getItem("orgId");
-    const datasourceId = localStorage.getItem("datasourceId");
-    if (!orgId || !datasourceId) { setBusyGen(false); setError("Please save a data source in Settings."); return; }
+    const ids = await ensureConnectionIds();
+    if (!ids) { setBusyGen(false); return; }
+    const { orgId, datasourceId } = ids;
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
     const res = await fetch("/api/nl2sql", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, prompt }) });
     setBusyGen(false);
@@ -34,9 +63,9 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
 
   async function run() {
     setBusyRun(true); setError(null); setRows(null);
-    const orgId = localStorage.getItem("orgId");
-    const datasourceId = localStorage.getItem("datasourceId");
-    if (!orgId || !datasourceId) { setBusyRun(false); setError("Please save a data source in Settings."); return; }
+    const ids = await ensureConnectionIds();
+    if (!ids) { setBusyRun(false); return; }
+    const { orgId, datasourceId } = ids;
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
     const res = await fetch("/api/execute", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, sql }) });
     setBusyRun(false);
@@ -46,9 +75,9 @@ export default function QueryClient({ canRun }: { canRun: boolean }) {
   }
 
   async function exportCsv() {
-    const orgId = localStorage.getItem("orgId");
-    const datasourceId = localStorage.getItem("datasourceId");
-    if (!orgId || !datasourceId) { setError("Please save a data source in Settings."); return; }
+    const ids = await ensureConnectionIds();
+    if (!ids) return;
+    const { orgId, datasourceId } = ids;
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
     const res = await fetch("/api/export.csv", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, sql }) });
     if (!res.ok) { setError((await res.json()).error || "Failed"); return; }

@@ -13,6 +13,7 @@ import RequireAuth from "@/src/components/RequireAuth";
 import MosaicHero from "@/src/components/landing/MosaicHero";
 import FeatureGrid from "@/src/components/landing/FeatureGrid";
 import HowItWorks from "@/src/components/landing/HowItWorks";
+import { fetchAccessibleDataSources } from "@/src/lib/datasourceClient";
 
 type QueryResult = { sql: string; fields: string[]; rows: any[] };
 
@@ -23,8 +24,37 @@ export default function HomePage() {
   const [hasDs, setHasDs] = useState(false);
   const [view, setView] = useState<"table" | "chart">("table");
 
+  async function resolveConnectionIds(): Promise<{ orgId: string; datasourceId: string } | null> {
+    try {
+      let orgId = localStorage.getItem("orgId");
+      let datasourceId = localStorage.getItem("datasourceId");
+      if (orgId && datasourceId) {
+        return { orgId, datasourceId };
+      }
+      const list = await fetchAccessibleDataSources();
+      if (list.length > 0) {
+        const first = list[0]!;
+        datasourceId = first.id;
+        orgId = first.orgId || null;
+        localStorage.setItem("datasourceId", datasourceId);
+        if (first.orgId) {
+          localStorage.setItem("orgId", first.orgId);
+        }
+      }
+      if (orgId && datasourceId) {
+        return { orgId, datasourceId };
+      }
+    } catch (err) {
+      console.error("Failed to resolve data source ids", err);
+    }
+    return null;
+  }
+
   useEffect(() => {
-    const refresh = () => {
+    let cancelled = false;
+
+    const syncFromLocal = () => {
+      if (cancelled) return;
       try {
         const dsId = localStorage.getItem("datasourceId");
         const orgId = localStorage.getItem("orgId");
@@ -34,12 +64,28 @@ export default function HomePage() {
       }
     };
 
-    refresh();
-    window.addEventListener("focus", refresh);
-    window.addEventListener("storage", refresh);
+    const hydrate = async () => {
+      try {
+        await resolveConnectionIds();
+      } catch (error) {
+        console.error("Failed to refresh data sources", error);
+      } finally {
+        syncFromLocal();
+      }
+    };
+
+    syncFromLocal();
+    hydrate();
+
+    const onFocus = () => syncFromLocal();
+    const onStorage = () => syncFromLocal();
+
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onStorage);
     return () => {
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("storage", refresh);
+      cancelled = true;
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onStorage);
     };
   }, []);
 
@@ -51,9 +97,9 @@ export default function HomePage() {
     setError(null);
     setResult(null);
     try {
-      const orgId = localStorage.getItem("orgId");
-      const datasourceId = localStorage.getItem("datasourceId");
-      if (!orgId || !datasourceId) { setError("Please configure a data source in Settings."); setBusy(false); return; }
+      const ids = await resolveConnectionIds();
+      if (!ids) { setError("Please configure a data source in Settings."); setBusy(false); return; }
+      const { orgId, datasourceId } = ids;
       const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
       const res = await fetch("/api/query", {
         method: "POST",
