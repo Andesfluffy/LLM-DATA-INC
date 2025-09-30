@@ -1,5 +1,5 @@
 "use client";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Edit3, Trash2 } from "lucide-react";
 import { toast } from "@/src/components/ui/Toast";
 import RequireAuth from "@/src/components/RequireAuth";
@@ -7,6 +7,7 @@ import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
 import Modal from "@/src/components/ui/Modal";
 import Input from "@/src/components/Input";
+import EmptyState from "@/src/components/EmptyState";
 
 export default function HistoryPage() {
   const [items, setItems] = useState<string[]>([]);
@@ -22,45 +23,45 @@ export default function HistoryPage() {
         setItems(stored);
       }
     } catch {
-      // ignore parsing issues
+      // ignore parsing issues – this history is best-effort only
     }
   }, []);
 
-  function persist(next: string[]) {
+  const persist = useCallback((next: string[]) => {
     setItems(next);
     localStorage.setItem("recentQueries", JSON.stringify(next));
-  }
+  }, []);
 
-  function startRename(query: string) {
+  const startRename = useCallback((query: string) => {
     setRenameTarget(query);
     setRenameValue(query);
     setRenameError(null);
-  }
+  }, []);
 
-  function closeRename() {
+  const closeRename = useCallback(() => {
     setRenameTarget(null);
     setRenameValue("");
     setRenameError(null);
-  }
+  }, []);
 
-  function startDelete(query: string) {
+  const startDelete = useCallback((query: string) => {
     setDeleteTarget(query);
-  }
+  }, []);
 
-  function cancelDelete() {
+  const cancelDelete = useCallback(() => {
     setDeleteTarget(null);
-  }
+  }, []);
 
-  function handleDeleteConfirm() {
+  const handleDeleteConfirm = useCallback(() => {
     if (!deleteTarget) return;
     const target = deleteTarget;
     const next = items.filter((value) => value !== target);
     persist(next);
     toast.success("Removed from history.");
     setDeleteTarget(null);
-  }
+  }, [deleteTarget, items, persist]);
 
-  function handleRenameSubmit(event: FormEvent<HTMLFormElement>) {
+  const handleRenameSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!renameTarget) return;
 
@@ -87,7 +88,9 @@ export default function HistoryPage() {
     persist(next);
     toast.success(`Renamed to "${trimmed}"`);
     closeRename();
-  }
+  }, [closeRename, items, persist, renameTarget, renameValue]);
+
+  const hasItems = useMemo(() => items.length > 0, [items]);
 
   return (
     <RequireAuth title="Sign in to view your history" description="Your Data Vista history stays private and searchable.">
@@ -98,8 +101,11 @@ export default function HistoryPage() {
             subtitle="Curate the saved prompts and summaries that keep your team aligned."
           />
           <CardBody>
-            {items.length === 0 ? (
-              <p className="text-sm text-slate-400">No history yet.</p>
+            {!hasItems ? (
+              <EmptyState
+                title="No history yet"
+                message="Run a question to create a local-only bookmark."
+              />
             ) : (
               <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {items.map((query) => (
@@ -145,7 +151,13 @@ export default function HistoryPage() {
             placeholder="e.g. Weekly revenue snapshot"
             aria-label="Rename query"
             error={renameError || undefined}
+            aria-describedby={renameError ? "rename-error" : undefined}
           />
+          {renameError && (
+            <p id="rename-error" className="text-xs text-rose-300" role="alert" aria-live="assertive">
+              {renameError}
+            </p>
+          )}
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <Button type="button" variant="ghost" onClick={closeRename}>
               Cancel
