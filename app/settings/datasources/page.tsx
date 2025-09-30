@@ -139,13 +139,35 @@ export default function DataSourcesSettingsPage() {
               }
             />
             <CardBody>
-              <div className="space-y-4">
+              <div className="space-y-6">
+                <div className="rounded-lg border border-[#2A2D3A] bg-[#0B0F12]/40 p-4">
+                  <p className="text-sm font-medium text-gray-200">
+                    Before you save, make sure you:
+                  </p>
+                  <ol className="mt-2 list-decimal space-y-2 pl-5 text-sm text-gray-300">
+                    <li>
+                      Gather the connection details from your Postgres host: hostname or
+                      IP, port, database name, and the schema you plan to query.
+                    </li>
+                    <li>
+                      Create or confirm a read-only credential that only has the
+                      privileges Data Vista needs (SELECT on the relevant schemas) and
+                      note the username/password.
+                    </li>
+                    <li>
+                      Verify the network path: add the Data Vista outbound IPs to your
+                      firewall or VPC allow-list and download any SSL certificates
+                      required for encrypted connections.
+                    </li>
+                  </ol>
+                </div>
                 <Input
                   label="Name"
                   value={form.name}
                   onChange={(event) =>
                     update("name", (event.target as HTMLInputElement).value)
                   }
+                  helperText="Human-friendly label, e.g., Primary warehouse or Analytics replica."
                 />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input
@@ -154,6 +176,7 @@ export default function DataSourcesSettingsPage() {
                     onChange={(event) =>
                       update("host", (event.target as HTMLInputElement).value)
                     }
+                    helperText="FQDN or IP address such as db.example.com or 10.0.0.15."
                   />
                   <Input
                     label="Port"
@@ -161,6 +184,7 @@ export default function DataSourcesSettingsPage() {
                     onChange={(event) =>
                       update("port", (event.target as HTMLInputElement).value)
                     }
+                    helperText="Postgres defaults to 5432; match your instance if customized."
                   />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -170,6 +194,7 @@ export default function DataSourcesSettingsPage() {
                     onChange={(event) =>
                       update("database", (event.target as HTMLInputElement).value)
                     }
+                    helperText="Database name to connect to, e.g., postgres or analytics."
                   />
                   <Input
                     label="User"
@@ -177,6 +202,7 @@ export default function DataSourcesSettingsPage() {
                     onChange={(event) =>
                       update("user", (event.target as HTMLInputElement).value)
                     }
+                    helperText="Read-only role such as datavista_reader or reporting_user."
                   />
                 </div>
                 <Input
@@ -186,6 +212,7 @@ export default function DataSourcesSettingsPage() {
                   onChange={(event) =>
                     update("password", (event.target as HTMLInputElement).value)
                   }
+                  helperText="Required for most roles; leave blank only if your org enforces passwordless auth (IAM/SSO)."
                 />
                 <div className="flex flex-wrap items-center gap-3">
                   <Button onClick={onSave} disabled={saving} variant="primary">
@@ -195,9 +222,28 @@ export default function DataSourcesSettingsPage() {
                     {saveMsg || ""}
                   </span>
                 </div>
-                <p className="text-xs text-gray-500">
-                  Security tip: Use a read-only DB role.
-                </p>
+                <details className="text-xs text-gray-400">
+                  <summary className="cursor-pointer text-gray-300">
+                    Need help with VPC allow-listing or SSL setup?
+                  </summary>
+                  <p className="mt-2">
+                    Our onboarding guide walks through adding Data Vista to your
+                    firewall/IP allow-list and providing SSL certificates for encrypted
+                    connections.
+                  </p>
+                  <a
+                    href="https://docs.datavista.io/onboarding/networking"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-2 inline-block text-gray-200 underline"
+                  >
+                    View networking &amp; security setup docs
+                  </a>
+                  <p className="mt-2">
+                    Still stuck? <a className="underline" href="mailto:support@datavista.io">Contact support</a>
+                    for dedicated assistance with private networking and certificates.
+                  </p>
+                </details>
               </div>
             </CardBody>
           </Card>
