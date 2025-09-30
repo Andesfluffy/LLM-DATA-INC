@@ -6,7 +6,7 @@ Next.js (App Router) + TypeScript + Tailwind + Prisma + OpenAI + Postgres. Inclu
 - Install dependencies
   - `npm install`
 - Create the database schema
-  - `npx prisma generate`
+  - `npm run prisma:generate` (or `npx prisma generate`)
   - `npx prisma migrate dev --name init`
 - Seed demo data (into your analytics/data-source DB)
   - `psql "$DEFAULT_DATASOURCE_URL" -f seed-demo-data.sql`
@@ -48,10 +48,20 @@ Other optional:
    - `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (if you opt to use NextAuth)
    - For Firebase auth (as implemented here): `NEXT_PUBLIC_FIREBASE_*`, `FIREBASE_*`
    - Optionally: `DEFAULT_DATASOURCE_URL`, `OPENAI_MODEL`
-4) Run database migrations on deploy:
-   - Vercel Build Command can include `npx prisma migrate deploy`
-   - Or run it manually once via Vercel CLI/Neon console
+4) Configure build settings:
+   - **Install Command:** `npm ci && npm run prisma:generate`
+   - **Build Command:** `npm run build`
+   - Run database migrations during the build with `npx prisma migrate deploy` (either append to the build command or run manually via Vercel CLI/Neon console).
 5) Seed your analytics/data-source DB with `seed-demo-data.sql` (run against that DB, not necessarily the app DB)
+
+## Deploy on Render
+1) Create a Web Service pointing at this repository. Choose the Node 20 runtime.
+2) Set the Environment to `Node`. Configure Environment Variables the same as the Vercel section (`DATABASE_URL`, `DATASOURCE_SECRET_KEY`, `OPENAI_API_KEY`, Firebase keys, etc.).
+3) Use the following commands:
+   - **Build Command:** `npm ci && npm run prisma:generate && npx prisma migrate deploy && npm run build`
+   - **Start Command:** `npm run start`
+4) Add a Render Postgres instance (or your own database) and update `DATABASE_URL` accordingly.
+5) Run `seed-demo-data.sql` against your analytics/data-source database if you want demo content.
 
 ## Acceptance Tests
 Use the UI (home page or /query) with the demo seed (products/sales) to validate.

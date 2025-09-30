@@ -1,148 +1,262 @@
 "use client";
-import { useState } from "react";
+
+import { useCallback, useMemo, useState } from "react";
+
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
-import ErrorAlert from "@/components/ui/error-alert";
-import EmptyState from "@/components/ui/empty-state";
-import { TableSkeleton } from "@/components/ui/skeleton";
 import Button from "@/src/components/Button";
-import Table from "@/src/components/Table";
 import Chart from "@/src/components/Chart";
+import EmptyState from "@/components/ui/empty-state";
+import ErrorAlert from "@/components/ui/error-alert";
+import Table from "@/src/components/Table";
+import Textarea from "@/src/components/ui/Textarea";
+import { TableSkeleton } from "@/components/ui/skeleton";
 import { fetchAccessibleDataSources } from "@/src/lib/datasourceClient";
 
-type Row = Record<string, any>;
+const VIEW_OPTIONS = ["table", "chart"] as const;
+type ViewOption = (typeof VIEW_OPTIONS)[number];
 
-export default function QueryClient({ canRun }: { canRun: boolean }) {
+type QueryClientProps = {
+  canRun: boolean;
+};
+
+type Row = Record<string, unknown>;
+type ConnectionIds = {
+  orgId: string;
+  datasourceId: string;
+};
+
+type QueryResponse = {
+  rows: Row[];
+};
+
+type SqlResponse = {
+  sql: string;
+};
+
+export default function QueryClient({ canRun }: QueryClientProps) {
   const [prompt, setPrompt] = useState("");
   const [sql, setSql] = useState("");
   const [rows, setRows] = useState<Row[] | null>(null);
-  const [busyGen, setBusyGen] = useState(false);
-  const [busyRun, setBusyRun] = useState(false);
+  const [view, setView] = useState<ViewOption>("table");
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<"table" | "chart">("table");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isRunning, setIsRunning] = useState(false);
 
-  async function ensureConnectionIds(): Promise<{ orgId: string; datasourceId: string } | null> {
+  const ensureConnectionIds = useCallback(async (): Promise<ConnectionIds | null> => {
     try {
       let orgId = localStorage.getItem("orgId");
       let datasourceId = localStorage.getItem("datasourceId");
+
       if (orgId && datasourceId) {
         return { orgId, datasourceId };
       }
+
       const list = await fetchAccessibleDataSources();
       if (list.length > 0) {
         const first = list[0]!;
         datasourceId = first.id;
         orgId = first.orgId || null;
+
         localStorage.setItem("datasourceId", datasourceId);
         if (first.orgId) {
           localStorage.setItem("orgId", first.orgId);
         }
       }
+
       if (orgId && datasourceId) {
         return { orgId, datasourceId };
       }
-    } catch (err: any) {
-      setError(String(err?.message || err));
-      return null;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
     }
+
     setError("Please save a data source in Settings.");
     return null;
-  }
+  }, []);
 
-  async function generate() {
-    setBusyGen(true); setError(null); setRows(null);
+  const fetchWithAuth = useCallback(async (endpoint: string, payload: Record<string, unknown>) => {
     const ids = await ensureConnectionIds();
-    if (!ids) { setBusyGen(false); return; }
+    if (!ids) {
+      return null;
+    }
+
     const { orgId, datasourceId } = ids;
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
-    const res = await fetch("/api/nl2sql", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, prompt }) });
-    setBusyGen(false);
-    if (!res.ok) { setError((await res.json()).error || "Failed"); return; }
-    const data = await res.json();
-    setSql(data.sql);
-  }
 
-  async function run() {
-    setBusyRun(true); setError(null); setRows(null);
-    const ids = await ensureConnectionIds();
-    if (!ids) { setBusyRun(false); return; }
-    const { orgId, datasourceId } = ids;
-    const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
-    const res = await fetch("/api/execute", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, sql }) });
-    setBusyRun(false);
-    if (!res.ok) { setError((await res.json()).error || "Failed"); return; }
-    const data = await res.json();
-    setRows(data.rows);
-  }
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+      },
+      body: JSON.stringify({ ...payload, orgId, datasourceId }),
+    });
 
-  async function exportCsv() {
-    const ids = await ensureConnectionIds();
-    if (!ids) return;
-    const { orgId, datasourceId } = ids;
-    const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
-    const res = await fetch("/api/export.csv", { method: "POST", headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) }, body: JSON.stringify({ orgId, datasourceId, sql }) });
-    if (!res.ok) { setError((await res.json()).error || "Failed"); return; }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'export.csv'; a.click();
-    URL.revokeObjectURL(url);
-  }
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      const message = data?.error || "Request failed";
+      throw new Error(message);
+    }
+
+    return response;
+  }, [ensureConnectionIds]);
+
+  const handleGenerate = useCallback(async () => {
+    const trimmed = prompt.trim();
+    if (!trimmed) return;
+
+    setIsGenerating(true);
+    setError(null);
+    setRows(null);
+
+    try {
+      const response = await fetchWithAuth("/api/nl2sql", { prompt: trimmed });
+      if (!response) return;
+
+      const data = (await response.json()) as SqlResponse;
+      setSql(data.sql);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [fetchWithAuth, prompt]);
+
+  const handleRun = useCallback(async () => {
+    const trimmed = sql.trim();
+    if (!trimmed) return;
+
+    setIsRunning(true);
+    setError(null);
+    setRows(null);
+
+    try {
+      const response = await fetchWithAuth("/api/execute", { sql: trimmed });
+      if (!response) return;
+
+      const data = (await response.json()) as QueryResponse;
+      setRows(data.rows);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsRunning(false);
+    }
+  }, [fetchWithAuth, sql]);
+
+  const handleExport = useCallback(async () => {
+    const trimmed = sql.trim();
+    if (!trimmed) return;
+
+    try {
+      const response = await fetchWithAuth("/api/export.csv", { sql: trimmed });
+      if (!response) return;
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "export.csv";
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, [fetchWithAuth, sql]);
+
+  const hasRows = useMemo(() => Boolean(rows && rows.length > 0), [rows]);
+  const fields = useMemo(() => (rows && rows[0] ? Object.keys(rows[0]) : []), [rows]);
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader title="Ask a question" subtitle="Generate SQL from natural language" />
-        <CardBody>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">Question</label>
-            <textarea className="border rounded-md w-full px-3 py-2" rows={3} value={prompt} onChange={(e)=>setPrompt(e.target.value)} placeholder="e.g. Top 10 customers by revenue last quarter" />
-            <div className="mt-2 flex gap-2">
-              <Button onClick={generate} disabled={!canRun || busyGen || !prompt.trim()}>{busyGen?"Generating…":"Generate SQL"}</Button>
+        <CardBody className="space-y-4">
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-300" htmlFor="query-prompt">
+              Question
+            </label>
+            <Textarea
+              id="query-prompt"
+              value={prompt}
+              onChange={(event) => setPrompt(event.target.value)}
+              rows={3}
+              placeholder="e.g. Top 10 customers by revenue last quarter"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  handleGenerate();
+                }
+              }}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={handleGenerate} disabled={!canRun || isGenerating || !prompt.trim()}>
+                {isGenerating ? "Generating…" : "Generate SQL"}
+              </Button>
             </div>
           </div>
-          {error && <div className="mt-3"><ErrorAlert message={error} /></div>}
+          {error && (
+            <ErrorAlert message={error} className="mt-2" aria-live="polite" />
+          )}
         </CardBody>
       </Card>
 
       <Card>
         <CardHeader title="SQL" />
-        <CardBody>
-          <textarea className="border rounded-md w-full px-3 py-2 font-mono" rows={8} value={sql} onChange={(e)=>setSql(e.target.value)} placeholder="SELECT ..." />
-          <div className="mt-2 flex gap-2">
-            <Button onClick={run} disabled={!canRun || busyRun || !sql.trim()}>{busyRun?"Running…":"Run"}</Button>
-            <Button onClick={exportCsv} disabled={!canRun || busyRun || !sql.trim()} variant="secondary">Export CSV</Button>
+        <CardBody className="space-y-3">
+          <Textarea
+            value={sql}
+            onChange={(event) => setSql(event.target.value)}
+            rows={8}
+            placeholder="SELECT …"
+            aria-label="Generated SQL"
+          />
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={handleRun} disabled={!canRun || isRunning || !sql.trim()}>
+              {isRunning ? "Running…" : "Run"}
+            </Button>
+            <Button onClick={handleExport} disabled={!canRun || isRunning || !sql.trim()} variant="secondary">
+              Export CSV
+            </Button>
           </div>
         </CardBody>
       </Card>
 
       <Card>
         <CardHeader title="Results" />
-        <CardBody>
-          {rows && rows.length > 0 && (
-            <div className="mb-3 flex items-center gap-2">
-              <Button variant={view === "table" ? "primary" : "secondary"} onClick={()=>setView("table")}>Table</Button>
-              <Button variant={view === "chart" ? "primary" : "secondary"} onClick={()=>setView("chart")}>Chart</Button>
+        <CardBody className="space-y-4">
+          {hasRows && (
+            <div className="flex items-center gap-2">
+              {VIEW_OPTIONS.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setView(option)}
+                  aria-pressed={view === option}
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+                    view === option
+                      ? "border-accent bg-accent/10 text-accent shadow-sm"
+                      : "border-accent/40 text-slate-300 hover:border-accent/80 hover:text-accent"
+                  }`}
+                >
+                  {option === "table" ? "Table" : "Chart"}
+                </button>
+              ))}
             </div>
           )}
-          {!rows ? (
-            <EmptyState title="No rows yet" message="Run a query to see results." />
-          ) : rows.length === 0 ? (
-            <EmptyState title="Empty" message="The query returned no rows." />
+
+          {isRunning && !rows ? (
+            <TableSkeleton rows={6} cols={fields.length || 4} />
+          ) : hasRows && rows ? (
+            view === "chart" ? (
+              <Chart fields={fields} rows={rows} />
             ) : (
-              view === "chart" ? (
-              <Chart fields={Object.keys(rows?.[0] || {})} rows={rows} />
-            ) : (
-              <Table fields={Object.keys(rows?.[0] || {})} rows={rows} />
+              <Table fields={fields} rows={rows} />
             )
+          ) : (
+            <EmptyState title="No rows yet" message="Run a query to see results." />
           )}
         </CardBody>
       </Card>
     </div>
   );
-}
-
-function formatCell(v: any) {
-  if (v === null || v === undefined) return "";
-  if (typeof v === 'object') return JSON.stringify(v);
-  return String(v);
 }

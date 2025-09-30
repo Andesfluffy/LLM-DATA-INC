@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
@@ -89,24 +89,26 @@ export default function DataSourcesSettingsPage() {
     };
   }, []);
 
-  function update<K extends keyof FormState>(key: K, val: FormState[K]) {
+  const update = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: val }));
-  }
+  }, []);
 
-  async function onTest() {
+  const authHeaders = useCallback(async () => {
+    const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
+    return {
+      "Content-Type": "application/json",
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+    };
+  }, []);
+
+  const onTest = useCallback(async () => {
     setTesting(true);
     setTestOk(null);
     setTestMsg(null);
     try {
-      const idToken = await (
-        await import("@/lib/firebase/client")
-      ).auth.currentUser?.getIdToken();
       const res = await fetch("/api/datasources/test", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-        },
+        headers: await authHeaders(),
         body: JSON.stringify({
           host: form.host,
           port: Number(form.port),
@@ -129,22 +131,16 @@ export default function DataSourcesSettingsPage() {
     } finally {
       setTesting(false);
     }
-  }
+  }, [authHeaders, form.database, form.host, form.password, form.port, form.user]);
 
-  async function onSave() {
+  const onSave = useCallback(async () => {
     setSaving(true);
     setSaveOk(null);
     setSaveMsg(null);
     try {
-      const idToken = await (
-        await import("@/lib/firebase/client")
-      ).auth.currentUser?.getIdToken();
       const res = await fetch("/api/datasources/save", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
-        },
+        headers: await authHeaders(),
         body: JSON.stringify({ ...form, port: Number(form.port) }),
       });
       const payload = await res.json();
@@ -168,12 +164,24 @@ export default function DataSourcesSettingsPage() {
     } finally {
       setSaving(false);
     }
-  }
+  }, [authHeaders, form, setOrgId]);
 
-  const saveTone =
-    saveOk === true ? "text-emerald-300" : saveOk === false ? "text-rose-300" : "text-gray-400";
-  const testTone =
-    testOk === true ? "text-emerald-300" : testOk === false ? "text-rose-300" : "text-gray-400";
+  const saveTone = useMemo(
+    () => (saveOk === true ? "text-emerald-300" : saveOk === false ? "text-rose-300" : "text-gray-400"),
+    [saveOk],
+  );
+  const testTone = useMemo(
+    () => (testOk === true ? "text-emerald-300" : testOk === false ? "text-rose-300" : "text-gray-400"),
+    [testOk],
+  );
+
+  const handleFormSubmit = useCallback(
+    (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      onSave();
+    },
+    [onSave],
+  );
 
   return (
     <RequireAuth
@@ -192,7 +200,7 @@ export default function DataSourcesSettingsPage() {
               }
             />
             <CardBody>
-              <div className="space-y-6">
+              <form className="space-y-6" onSubmit={handleFormSubmit} noValidate>
                 {loadingExisting && (
                   <p className="text-sm text-gray-400">Loading saved connection…</p>
                 )}
@@ -258,10 +266,12 @@ export default function DataSourcesSettingsPage() {
                   helperText="Required for most roles; leave blank only if your org enforces passwordless auth (IAM/SSO)."
                 />
                 <div className="flex flex-wrap items-center gap-3">
-                  <Button onClick={onSave} disabled={saving} variant="primary">
+                  <Button type="submit" disabled={saving} variant="primary">
                     {saving ? "Saving..." : "Save"}
                   </Button>
-                  <span className={`text-sm ${saveTone}`}>{saveMsg || ""}</span>
+                  <span className={`text-sm ${saveTone}`} aria-live="polite">
+                    {saveMsg || ""}
+                  </span>
                 </div>
                 <details className="text-xs text-gray-400">
                   <summary className="cursor-pointer text-gray-300">
@@ -284,7 +294,7 @@ export default function DataSourcesSettingsPage() {
                     dedicated assistance with private networking and certificates.
                   </p>
                 </details>
-              </div>
+              </form>
             </CardBody>
           </Card>
           <Card>
@@ -292,10 +302,12 @@ export default function DataSourcesSettingsPage() {
             <CardBody>
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
-                  <Button onClick={onTest} disabled={testing} variant="secondary">
+                  <Button onClick={onTest} disabled={testing} variant="secondary" type="button">
                     {testing ? "Testing..." : "Test"}
                   </Button>
-                  <span className={`text-sm ${testTone}`}>{testMsg || ""}</span>
+                  <span className={`text-sm ${testTone}`} aria-live="polite">
+                    {testMsg || ""}
+                  </span>
                 </div>
                 <p className="text-sm text-gray-600">The test runs "select 1" with a 10s timeout.</p>
               </div>
