@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { encryptPassword } from "@/lib/datasourceSecrets";
+import { ensureUserAndOrg } from "@/lib/userOrg";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {
@@ -12,6 +13,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
   const { host, port, database, user, name } = body;
+  const { user: dbUser, org } = await ensureUserAndOrg(userAuth);
   const hasPassword = Object.prototype.hasOwnProperty.call(body, "password");
   const password = hasPassword ? body.password : undefined;
 
@@ -38,22 +40,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Ensure demo org exists with fixed id
-  const demoOrgId = "demo-org";
-  await prisma.org.upsert({
-    where: { id: demoOrgId },
-    update: {},
-    create: { id: demoOrgId, name: "Demo Org" },
-  });
+  const matchers = [
+    name ? { name } : undefined,
+    host && database ? { AND: [{ host }, { database }] } : undefined,
+  ].filter(Boolean);
 
-  // Find existing DS for org by name or host/db pair
   const existing = await prisma.dataSource.findFirst({
     where: {
-      orgId: demoOrgId,
-      OR: [
-        name ? { name } : undefined,
-        { AND: [{ host }, { database }] },
-      ].filter(Boolean) as any,
+      orgId: org.id,
+      ownerId: dbUser.id,
+      ...(matchers.length ? { OR: matchers } : {}),
     },
   });
 
@@ -61,7 +57,8 @@ export async function POST(req: NextRequest) {
     ? await prisma.dataSource.update({
         where: { id: existing.id },
         data: {
-          orgId: demoOrgId,
+          orgId: org.id,
+          ownerId: dbUser.id,
           type: "postgres",
           name: name || existing.name,
           host,
@@ -76,7 +73,8 @@ export async function POST(req: NextRequest) {
       })
     : await prisma.dataSource.create({
         data: {
-          orgId: demoOrgId,
+          orgId: org.id,
+          ownerId: dbUser.id,
           type: "postgres",
           name: name || `${database}@${host}`,
           host,
@@ -90,5 +88,5 @@ export async function POST(req: NextRequest) {
         },
       });
 
-  return NextResponse.json({ id: ds.id });
+  return NextResponse.json({ id: ds.id, orgId: ds.orgId, ownerId: ds.ownerId });
 }

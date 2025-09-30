@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
+import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -12,7 +13,8 @@ export async function GET(req: NextRequest) {
   const parsed = Query.safeParse(search);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const { orgId, datasourceId } = parsed.data;
-  const ds = await appPrisma.dataSource.findFirst({ where: { id: datasourceId, orgId } });
+  const { user: dbUser } = await ensureUserAndOrg(user);
+  const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
   let url: string;
   try {

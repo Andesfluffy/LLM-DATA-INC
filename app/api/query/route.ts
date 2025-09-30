@@ -6,6 +6,7 @@ import { nlToSql } from "@/src/server/generateSql";
 import { enforceLimit, isSelectOnly } from "@/src/server/sqlGuard";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { decryptDataSourcePassword, getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
+import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
 import { z } from "zod";
 import crypto from "crypto";
 
@@ -16,8 +17,9 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   const { orgId, datasourceId, question } = parsed.data;
+  const { user: dbUser, org } = await ensureUserAndOrg(userAuth);
 
-  const ds = await prisma.dataSource.findFirst({ where: { id: datasourceId, orgId } });
+  const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
   if (ds.type !== "postgres") return NextResponse.json({ error: "Only postgres type supported" }, { status: 400 });
 
@@ -49,7 +51,7 @@ export async function POST(req: NextRequest) {
     const schemaKey = `${ds.host}:${ds.port}:${ds.database}:${ds.user}`;
     const schema = await getSchemaDDL({ query: (sql: string) => client.query(sql) }, schemaKey);
     const schemaHash = crypto.createHash('sha256').update(schema).digest('hex');
-    const cacheKey = `${orgId}|${schemaHash}|${crypto.createHash('sha256').update(question).digest('hex')}`;
+    const cacheKey = `${ds.orgId ?? org.id}|${schemaHash}|${crypto.createHash('sha256').update(question).digest('hex')}`;
     let sqlRaw: string;
     const hit = nlCache.get(cacheKey);
     if (hit && hit.expiresAt > Date.now()) {
@@ -72,8 +74,8 @@ export async function POST(req: NextRequest) {
     const durationMs = Date.now() - t0;
     await prisma.auditLog.create({
       data: {
-        orgId,
-        userId: null,
+        orgId: ds.orgId ?? org.id,
+        userId: dbUser.id,
         question,
         sql,
         durationMs,

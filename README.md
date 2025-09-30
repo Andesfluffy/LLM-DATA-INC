@@ -79,6 +79,6 @@ Use the UI (home page or /query) with the demo seed (products/sales) to validate
 
 ## Notes
 - Guardrails: regex-based checks enforce single SELECT and append LIMIT if missing. For stronger guarantees, integrate a SQL parser.
-- Data sources are saved under a demo org (`demo-org`) for simplicity in this MVP.
+- Data sources are scoped to each authenticated user. A personal org is derived from the Firebase UID so connections remain isolated per account.
 - Data source passwords/connection strings are encrypted at rest using AES-256-GCM and the `DATASOURCE_SECRET_KEY`.
 - Seed data script: `seed-demo-data.sql` creates `products` and `sales` with sample rows across ~30 days.
