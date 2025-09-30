@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({
-    dataSources: dataSources.map((ds) => redactDataSourceSecrets(ds)),
+    dataSources: dataSources.map((ds: (typeof dataSources)[number]) =>
+      redactDataSourceSecrets(ds)
+    ),
   });
 }
