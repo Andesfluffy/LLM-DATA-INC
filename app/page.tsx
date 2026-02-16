@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquare, Code2, Table2, BarChart3, Download, AlertCircle, Loader2, RotateCcw } from "lucide-react";
 import OnboardingWizard from "@/src/components/onboarding/OnboardingWizard";
 import { useConversationThread } from "@/src/hooks/useConversationThread";
@@ -36,6 +36,16 @@ type ConnectionIds = {
 
 export default function HomePage() {
   const { user, loading } = useFirebaseAuth();
+  const prevUser = useRef(user);
+
+  // Scroll to top when user transitions from signed-out → signed-in
+  useEffect(() => {
+    if (!prevUser.current && user) {
+      window.scrollTo({ top: 0, behavior: "instant" });
+    }
+    prevUser.current = user;
+  }, [user]);
+
   const [result, setResult] = useState<QueryResult | null>(null);
   const [lastQuestion, setLastQuestion] = useState("");
   const [error, setError] = useState<string | null>(null);

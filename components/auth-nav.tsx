@@ -11,8 +11,6 @@ import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
 import Modal from "@/src/components/ui/Modal";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const POST_SIGNIN_DELAY_MS = 150;
-
 export default function AuthNav() {
   const {
     user,
@@ -26,7 +24,6 @@ export default function AuthNav() {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
-  const signInRedirectTimeout = useRef<number | null>(null);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -41,15 +38,6 @@ export default function AuthNav() {
   }, [menuOpen]);
 
   useEffect(() => {
-    return () => {
-      if (signInRedirectTimeout.current !== null) {
-        window.clearTimeout(signInRedirectTimeout.current);
-        signInRedirectTimeout.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     if (!user) {
       setMenuOpen(false);
     }
@@ -60,9 +48,7 @@ export default function AuthNav() {
     try {
       await signInWithGoogle();
       toast.success("Signed in successfully.");
-      signInRedirectTimeout.current = window.setTimeout(() => {
-        router.push("/");
-      }, POST_SIGNIN_DELAY_MS);
+      // page.tsx handles scroll-to-top on auth state change
     } catch (error) {
       console.error("Google sign-in failed", error);
       toast.error("Google sign-in failed. Please try again.");
