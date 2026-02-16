@@ -148,6 +148,10 @@ function inspectCsv(csvBuffer: Buffer, delimiter: string): { rowCount: number; c
 }
 
 function pickStorageMode(byteLength: number): "inline_base64" | "filesystem" {
+  // On Vercel (serverless), filesystem storage is ephemeral and unreliable.
+  // Always use inline_base64 when running on Vercel.
+  if (process.env.VERCEL) return "inline_base64";
+
   const configured = (process.env.CSV_STORAGE_MODE || "auto").toLowerCase();
   const inlineLimit = Number(process.env.CSV_INLINE_MAX_BYTES || DEFAULT_INLINE_MAX_BYTES);
 
