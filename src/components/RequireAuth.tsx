@@ -2,6 +2,7 @@
 
 import { ReactNode, useState } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
 import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
@@ -21,6 +22,7 @@ const COMPACT_HIGHLIGHTS = AUTH_HIGHLIGHTS.slice(0, 2);
 export default function RequireAuth({ children, title, description }: RequireAuthProps) {
   const { user, loading, signInWithGoogle } = useFirebaseAuth();
   const [authenticating, setAuthenticating] = useState(false);
+  const router = useRouter();
 
   if (loading) {
     return (
@@ -154,6 +156,8 @@ export default function RequireAuth({ children, title, description }: RequireAut
                       setAuthenticating(true);
                       try {
                         await signInWithGoogle();
+                        toast.success("Signed in successfully.");
+                        setTimeout(() => router.push("/"), 150);
                       } catch (err) {
                         console.error("Google sign-in failed", err);
                         toast.error("Google sign-in failed. Please try again.");

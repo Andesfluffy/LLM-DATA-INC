@@ -11,7 +11,7 @@ import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
 import Modal from "@/src/components/ui/Modal";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const HERO_REDIRECT_DELAY_MS = 520;
+const POST_SIGNIN_DELAY_MS = 150;
 
 export default function AuthNav() {
   const {
@@ -61,8 +61,8 @@ export default function AuthNav() {
       await signInWithGoogle();
       toast.success("Signed in successfully.");
       signInRedirectTimeout.current = window.setTimeout(() => {
-        router.push("/#hero");
-      }, HERO_REDIRECT_DELAY_MS);
+        router.push("/");
+      }, POST_SIGNIN_DELAY_MS);
     } catch (error) {
       console.error("Google sign-in failed", error);
       toast.error("Google sign-in failed. Please try again.");

@@ -1,5 +1,5 @@
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, browserSessionPersistence, setPersistence } from "firebase/auth";
 
 function getConfig() {
   return {
@@ -35,7 +35,18 @@ function getLazyApp() {
 export const firebaseApp = new Proxy({} as ReturnType<typeof initializeApp>, {
   get(_t, p) { return (getLazyApp() as any)[p]; },
 });
+// Session-only persistence: auth clears when all browser tabs are closed.
+// Prevents walk-up access on shared machines.
+let _authReady: Promise<void> | null = null;
+function getSessionAuth() {
+  const a = getAuth(getLazyApp());
+  if (!_authReady) {
+    _authReady = setPersistence(a, browserSessionPersistence).catch(() => {});
+  }
+  return a;
+}
+export const authReady = () => _authReady ?? Promise.resolve();
 export const auth = new Proxy({} as ReturnType<typeof getAuth>, {
-  get(_t, p) { return (getAuth(getLazyApp()) as any)[p]; },
+  get(_t, p) { return (getSessionAuth() as any)[p]; },
 });
 export const googleProvider = new GoogleAuthProvider();

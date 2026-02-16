@@ -1,21 +1,28 @@
 "use client";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight, Shield, Zap, BarChart3 } from "lucide-react";
 import Button, { buttonClassName } from "@/src/components/Button";
 import GoogleGlyph from "@/src/components/GoogleGlyph";
 import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
+import { toast } from "@/src/components/ui/Toast";
 import { useState } from "react";
 
 export default function MosaicHero() {
   const { user, loading, signInWithGoogle } = useFirebaseAuth();
   const [authenticating, setAuthenticating] = useState(false);
+  const router = useRouter();
 
   async function handleGoogle() {
     setAuthenticating(true);
     try {
       await signInWithGoogle();
+      toast.success("Signed in successfully.");
+      // Short delay to let auth state propagate, then navigate to app
+      setTimeout(() => router.push("/"), 150);
     } catch (err) {
       console.error("Google sign-in failed", err);
+      toast.error("Google sign-in failed. Please try again.");
     } finally {
       setAuthenticating(false);
     }

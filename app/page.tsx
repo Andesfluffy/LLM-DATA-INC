@@ -16,7 +16,7 @@ import HowItWorks from "@/src/components/landing/HowItWorks";
 import MosaicHero from "@/src/components/landing/MosaicHero";
 import QueryInput from "@/src/components/QueryInput";
 import QueryBuilder from "@/src/components/QueryBuilder";
-import RequireAuth from "@/src/components/RequireAuth";
+
 import InsightPanel from "@/src/components/InsightPanel";
 import ResultsChart from "@/src/components/ResultsChart";
 import ResultsTable from "@/src/components/ResultsTable";
@@ -251,14 +251,25 @@ export default function HomePage() {
     setView(next);
   }, []);
 
+  // Show a loading skeleton while Firebase resolves auth state
+  if (loading) {
+    return (
+      <div className="space-y-6 py-12">
+        <Skeleton className="mx-auto h-12 w-2/3 rounded-xl" />
+        <Skeleton className="mx-auto h-6 w-1/2 rounded-lg" />
+        <Skeleton className="mx-auto h-48 w-full max-w-4xl rounded-2xl" />
+      </div>
+    );
+  }
+
+  // Not signed in — show the landing hero
+  if (!user) {
+    return <MosaicHero />;
+  }
+
+  // Signed in — show the main app
   return (
     <>
-      {!loading && !user && <MosaicHero />}
-      {!loading && user && (
-        <RequireAuth
-          title="Sign in to explore Data Vista"
-          description="Unlock AI-generated SQL, charts, and automations tailored to your workspace."
-        >
           {showOnboarding && onboardingChecked ? (
             <div className="py-12">
               <OnboardingWizard onComplete={handleOnboardingComplete} />
@@ -496,8 +507,6 @@ export default function HomePage() {
               </section>
             </div>
           )}
-        </RequireAuth>
-      )}
-    </>
+      </>
   );
 }
