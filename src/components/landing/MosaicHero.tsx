@@ -47,20 +47,30 @@ export default function MosaicHero() {
           <div className="max-w-4xl mx-auto text-center">
             <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-1.5 text-[11px] uppercase tracking-[0.2em] text-grape-300 mb-8 backdrop-blur-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-white/60 animate-pulse" />
-              Intelligent Data Platform
+              Data Vista Platform
             </div>
 
-            <h1 className="animate-fade-in-up text-[2.5rem] sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-[-0.04em] text-white leading-[1.06]" style={{ animationDelay: "100ms" }}>
+            <h1
+              className="animate-fade-in-up text-[2.5rem] sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-[-0.04em] text-white leading-[1.06]"
+              style={{ animationDelay: "100ms" }}
+            >
               Ask in English.
               <br />
               <span className="gradient-text">Get answers instantly.</span>
             </h1>
 
-            <p className="animate-fade-in-up mt-6 text-grape-400 max-w-xl mx-auto text-base sm:text-lg leading-relaxed" style={{ animationDelay: "200ms" }}>
-              Convert natural language into safe, audit-ready SQL. Get charts, tables, and CSV exports on demand. No SQL expertise required.
+            <p
+              className="animate-fade-in-up mt-6 text-grape-400 max-w-xl mx-auto text-base sm:text-lg leading-relaxed"
+              style={{ animationDelay: "200ms" }}
+            >
+              Convert natural language into safe, audit-ready SQL. Get charts,
+              tables, and CSV exports on demand. No SQL expertise required.
             </p>
 
-            <div className="animate-fade-in-up mt-10 flex flex-col sm:flex-row items-center justify-center gap-3" style={{ animationDelay: "300ms" }}>
+            <div
+              className="animate-fade-in-up mt-10 flex flex-col sm:flex-row items-center justify-center gap-3"
+              style={{ animationDelay: "300ms" }}
+            >
               <button
                 onClick={handleGoogle}
                 disabled={signInDisabled}
@@ -71,19 +81,28 @@ export default function MosaicHero() {
               </button>
               <Link
                 href="mailto:hello@datavista.ai"
-                className={buttonClassName({ variant: "accent", className: "w-full sm:w-auto px-7 py-3" })}
+                className={buttonClassName({
+                  variant: "accent",
+                  className: "w-full sm:w-auto px-7 py-3",
+                })}
               >
                 Contact us
               </Link>
             </div>
 
-            <div className="animate-fade-in-up mt-12 flex flex-wrap justify-center gap-3" style={{ animationDelay: "400ms" }}>
+            <div
+              className="animate-fade-in-up mt-12 flex flex-wrap justify-center gap-3"
+              style={{ animationDelay: "400ms" }}
+            >
               {[
                 { icon: Shield, text: "SELECT-only guardrails" },
                 { icon: Zap, text: "Sub-second schema cache" },
                 { icon: BarChart3, text: "Auto charts & CSV" },
               ].map(({ icon: Icon, text }) => (
-                <span key={text} className="inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-3.5 py-2 text-xs text-grape-400 backdrop-blur-sm">
+                <span
+                  key={text}
+                  className="inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-3.5 py-2 text-xs text-grape-400 backdrop-blur-sm"
+                >
                   <Icon className="h-3.5 w-3.5 text-grape-300" />
                   {text}
                 </span>
