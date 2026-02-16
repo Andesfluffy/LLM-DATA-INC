@@ -32,6 +32,9 @@ Optional/used in this repo (Firebase Google sign-in):
 Other optional:
 - `DEFAULT_DATASOURCE_URL` – Fallback data-source connection string
 - `OPENAI_MODEL` – Defaults to `gpt-4o-mini`
+- `CSV_STORAGE_MODE` – `auto` (default), `inline`, or `filesystem` for uploaded spreadsheet storage strategy
+- `CSV_INLINE_MAX_BYTES` – Max bytes kept inline when `CSV_STORAGE_MODE=auto` (default `2097152`)
+- `CSV_UPLOAD_RETENTION_DAYS` – Retention period for stale unreferenced files under `uploads/` (default `30`)
 
 ## Run Locally
 - `npm run dev`
@@ -91,4 +94,7 @@ Use the UI (home page or /query) with the demo seed (products/sales) to validate
 - Guardrails: regex-based checks enforce single SELECT and append LIMIT if missing. For stronger guarantees, integrate a SQL parser.
 - Data sources are scoped to each authenticated user. A personal org is derived from the Firebase UID so connections remain isolated per account.
 - Data source passwords/connection strings are encrypted at rest using AES-256-GCM and the `DATASOURCE_SECRET_KEY`.
+- The query endpoint also supports non-technical overview prompts like "What data do I have?" and returns a schema-based summary table.
+- Spreadsheet uploads support `.csv`, `.xlsx`, and `.xls`; users can choose a sheet for Excel files (or default to first non-empty), and CSV delimiters are auto-detected (comma, semicolon, tab, pipe).
+- In filesystem mode, stale unreferenced upload files are cleaned up automatically based on `CSV_UPLOAD_RETENTION_DAYS`.
 - Seed data script: `seed-demo-data.sql` creates `products` and `sales` with sample rows across ~30 days.

@@ -22,15 +22,15 @@ export function AppToaster() {
       toastOptions={{
         duration: 4600,
         style: {
-          background: "rgba(13, 16, 22, 0.96)",
-          color: "rgb(var(--fg))",
+          background: "rgba(13, 13, 13, 0.96)",
+          color: "rgb(250, 250, 250)",
           fontFamily: fontStack,
           fontSize: "0.95rem",
           fontWeight: 600,
           letterSpacing: "0.015em",
           borderRadius: "18px",
-          border: "1px solid rgba(249, 115, 22, 0.45)",
-          boxShadow: "0 22px 60px rgba(0, 0, 0, 0.45)",
+          border: "1px solid rgba(255, 255, 255, 0.08)",
+          boxShadow: "0 22px 60px rgba(0, 0, 0, 0.6)",
           padding: "1rem 1.2rem",
           backdropFilter: "blur(14px)",
           pointerEvents: "auto",
@@ -38,22 +38,25 @@ export function AppToaster() {
         },
         success: {
           iconTheme: {
-            primary: "#F97316",
-            secondary: "#0C0C0E",
+            primary: "#34d399",
+            secondary: "#000000",
+          },
+          style: {
+            borderColor: "rgba(52, 211, 153, 0.3)",
           },
         },
         error: {
           iconTheme: {
-            primary: "#F87171",
-            secondary: "#0C0C0E",
+            primary: "#f87171",
+            secondary: "#000000",
           },
           style: {
-            borderColor: "rgba(248, 113, 113, 0.55)",
+            borderColor: "rgba(248, 113, 113, 0.3)",
           },
         },
         loading: {
           style: {
-            borderColor: "rgba(96, 165, 250, 0.45)",
+            borderColor: "rgba(255, 255, 255, 0.1)",
           },
         },
       }}

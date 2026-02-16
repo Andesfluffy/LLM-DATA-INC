@@ -17,4 +17,14 @@ describe('validateSql table allowlist', () => {
     const result = validateSql('SELECT * FROM "My""Schema"."My""Table"', ['"My""Schema"."My""Table"']);
     expect(result).toEqual({ ok: true });
   });
+
+  it('allows MySQL backtick-quoted tables present in allowlist', () => {
+    const result = validateSql('SELECT * FROM `sales_db`.`orders`', ['sales_db.orders']);
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('rejects MySQL backtick-quoted tables not in allowlist', () => {
+    const result = validateSql('SELECT * FROM `mysql`.`user`', ['sales_db.orders']);
+    expect(result).toEqual({ ok: false, reason: 'Table not allowed: `mysql`.`user`' });
+  });
 });

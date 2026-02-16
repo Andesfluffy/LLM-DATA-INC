@@ -23,6 +23,7 @@ export default function ResultsChart({ fields, rows }: Props) {
   if (!rows || rows.length === 0) return null;
   const f = inferChartFields(fields, rows);
   if (!f) return null;
+  const denseCategoryAxis = f.kind === "category" && rows.length > 4;
   const data = rows.map((r) => {
     const x = f.kind === "time" ? normalizeDate(r[f.x]) : String(r[f.x]);
     const y = Number(r[f.y]);
@@ -30,22 +31,29 @@ export default function ResultsChart({ fields, rows }: Props) {
   });
 
   return (
-    <div style={{ width: "100%", height: 320 }} className="brand-bg rounded-xl p-3 border border-[#2A2D3A]">
+    <div className="brand-bg w-full h-[250px] sm:h-[320px] rounded-xl p-2 sm:p-3 border border-[#2A2D3A]">
       <ResponsiveContainer>
         {f.kind === "time" ? (
-          <LineChart data={data} margin={{ top: 10, right: 20, bottom: 0, left: -10 }}>
+          <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -16 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2A2D3A" />
-            <XAxis dataKey={f.x} tick={{ fontSize: 12, fill: '#e5e7eb' }} stroke="#475569" />
-            <YAxis tick={{ fontSize: 12, fill: '#e5e7eb' }} stroke="#475569" />
+            <XAxis dataKey={f.x} tick={{ fontSize: 10, fill: '#e5e7eb' }} stroke="#475569" />
+            <YAxis tick={{ fontSize: 10, fill: '#e5e7eb' }} stroke="#475569" width={36} />
             <Tooltip />
             <Legend />
             <Line type="monotone" dataKey={f.y} stroke="#F97316" strokeWidth={2} dot={false} />
           </LineChart>
         ) : (
-          <BarChart data={data} margin={{ top: 10, right: 20, bottom: 0, left: -10 }}>
+          <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -16 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2A2D3A" />
-            <XAxis dataKey={f.x} tick={{ fontSize: 12, fill: '#e5e7eb' }} interval={0} angle={data.length > 6 ? -25 : 0} height={data.length > 6 ? 60 : 30} stroke="#475569" />
-            <YAxis tick={{ fontSize: 12, fill: '#e5e7eb' }} stroke="#475569" />
+            <XAxis
+              dataKey={f.x}
+              tick={{ fontSize: 10, fill: '#e5e7eb' }}
+              interval={0}
+              angle={denseCategoryAxis ? -32 : 0}
+              height={denseCategoryAxis ? 64 : 30}
+              stroke="#475569"
+            />
+            <YAxis tick={{ fontSize: 10, fill: '#e5e7eb' }} stroke="#475569" width={36} />
             <Tooltip />
             <Legend />
             <Bar dataKey={f.y} fill="#F97316" />

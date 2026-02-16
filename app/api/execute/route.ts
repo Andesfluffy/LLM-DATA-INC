@@ -1,58 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
-import { validateSql, enforceLimit } from "@/lib/guardrails";
+import { prisma as appPrisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
-import { getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
 import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
+import { getConnector } from "@/lib/connectors/registry";
+import { getGuardrails } from "@/lib/connectors/guards";
+import "@/lib/connectors/init";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {
   const t0 = Date.now();
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const Body = z.object({ orgId: z.string().min(1), datasourceId: z.string().min(1), sql: z.string().min(1) });
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
   const { orgId, datasourceId, sql } = parsed.data;
   const { user: dbUser, org } = await ensureUserAndOrg(user);
 
   const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
-  let url: string;
-  try {
-    url = getDataSourceConnectionUrl(ds);
-  } catch (error) {
-    console.error("Failed to resolve data source connection", error);
-    return NextResponse.json({ error: "Data source credentials unavailable" }, { status: 500 });
-  }
-  const prisma = getPrismaForUrl(url);
 
-  const allowedTables = await getAllowedTables(prisma);
-  const guard = validateSql(sql, allowedTables);
-  if (!guard.ok) return NextResponse.json({ error: `Guardrails rejected SQL: ${guard.reason}` }, { status: 400 });
-  const limited = enforceLimit(sql, 5000);
+  const factory = getConnector(ds.type || "postgres");
+  const client = await factory.createClient(ds);
+  const guards = getGuardrails(factory.dialect);
+  let limited = sql;
+
   try {
-    const rows = await prisma.$transaction(async (tx: any) => {
-      await tx.$executeRawUnsafe(`SET LOCAL statement_timeout = 10000`);
-      const r = await tx.$queryRawUnsafe(limited) as any[];
-      return r;
+    const allowedTables = await client.getAllowedTables();
+    const guard = guards.validateSql(sql, allowedTables);
+    if (!guard.ok) {
+      return NextResponse.json({ error: `Guardrails rejected SQL: ${guard.reason}` }, { status: 400 });
+    }
+
+    limited = guards.enforceLimit(sql, 5000);
+    const result = await client.executeQuery(limited, { timeoutMs: 10000 });
+    await appPrisma.auditLog.create({
+      data: {
+        orgId: ds.orgId ?? org.id,
+        userId: dbUser.id,
+        question: "",
+        sql: limited,
+        durationMs: Date.now() - t0,
+        rowCount: result.rowCount,
+      },
     });
-    await appPrisma.auditLog.create({ data: { orgId: ds.orgId ?? org.id, userId: dbUser.id, question: "", sql: limited, durationMs: Date.now() - t0, rowCount: rows.length } });
-    return NextResponse.json({ rows });
-  } catch (e: any) {
-    await appPrisma.auditLog.create({ data: { orgId: ds.orgId ?? org.id, userId: dbUser.id, question: "", sql: limited, durationMs: Date.now() - t0, rowCount: null } });
-    const msg = String(e?.message || e);
-    const isTimeout = /statement timeout|canceling statement/i.test(msg);
-    return NextResponse.json({ error: isTimeout ? "Query timed out after 10s" : "Query failed" }, { status: isTimeout ? 504 : 500 });
-  }
-}
 
-async function getAllowedTables(prisma: any): Promise<string[]> {
-  const rows: Array<{ schema: string; table: string }> = await prisma.$queryRawUnsafe(
-    `SELECT table_schema as schema, table_name as table
-     FROM information_schema.tables
-     WHERE table_schema NOT IN ('pg_catalog','information_schema')
-       AND table_type = 'BASE TABLE'`
-  );
-  return rows.map((r) => (r.schema === 'public' ? r.table : `${r.schema}.${r.table}`));
+    return NextResponse.json({ fields: result.fields, rows: result.rows });
+  } catch (e: any) {
+    await appPrisma.auditLog.create({
+      data: {
+        orgId: ds.orgId ?? org.id,
+        userId: dbUser.id,
+        question: "",
+        sql: limited,
+        durationMs: Date.now() - t0,
+        rowCount: null,
+      },
+    });
+
+    const msg = String(e?.message || e);
+    const isTimeout = /statement timeout|canceling statement|max_execution_time|timed out/i.test(msg);
+    return NextResponse.json({ error: isTimeout ? "Query timed out after 10s" : "Query failed" }, { status: isTimeout ? 504 : 500 });
+  } finally {
+    await client.disconnect();
+  }
 }

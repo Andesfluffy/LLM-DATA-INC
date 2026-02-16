@@ -26,22 +26,33 @@ export default function HowItWorks({ brandName = DEFAULT_BRAND }: HowItWorksProp
   ];
 
   return (
-    <section className="rounded-2xl border border-[#2A2D3A] p-6 md:p-8 bg-[#23263a]/80">
-      <h2 className="text-xl md:text-2xl font-semibold tracking-[-0.01em] mb-4 text-white heading-font">How it works</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+    <section className="relative">
+      <div className="text-center mb-10">
+        <p className="text-[11px] uppercase tracking-[0.2em] text-grape-400 mb-3">Simple workflow</p>
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-[-0.02em]">
+          Three steps to insight
+        </h2>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
         {steps.map((step, index) => (
           <div
             key={step.title}
-            className="rounded-2xl border border-[#2A2D3A] p-5 bg-[#0B0F12]/60 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5"
+            className="group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-white/[0.1]"
           >
-            <div className="flex items-center gap-2">
-              <span className="inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-accent/15 text-accent text-xs font-semibold">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-white text-sm font-bold">
                 {index + 1}
               </span>
-              <step.icon className="h-4 w-4 text-accent" />
-              <span className="font-medium text-white">{step.title}</span>
+              <step.icon className="h-5 w-5 text-grape-400 opacity-60" />
             </div>
-            <p className="mt-2 text-sm text-gray-300">{step.desc}</p>
+
+            <h3 className="text-lg font-semibold text-white mb-2">{step.title}</h3>
+            <p className="text-sm text-grape-400 leading-relaxed">{step.desc}</p>
+
+            {index < steps.length - 1 && (
+              <div className="hidden md:block absolute top-1/2 -right-3 md:-right-3.5 w-6 h-px bg-gradient-to-r from-white/[0.1] to-transparent" />
+            )}
           </div>
         ))}
       </div>

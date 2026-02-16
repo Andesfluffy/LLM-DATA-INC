@@ -12,7 +12,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "seed": "npx tsx prisma/seed.ts"
   },
   "engines": {
     "node": "20.x"
@@ -20,10 +21,13 @@
   "dependencies": {
     "@prisma/client": "^6.16.2",
     "autoprefixer": "^10.4.20",
+    "better-sqlite3": "^12.6.2",
     "classnames": "^2.5.1",
-    "firebase": "^10.13.1",
+    "csv-parse": "^6.1.0",
+    "firebase": "^10.14.1",
     "firebase-admin": "^12.5.0",
     "lucide-react": "^0.452.0",
+    "mysql2": "^3.17.1",
     "next": "^15.5.3",
     "openai": "^4.57.1",
     "pg": "^8.12.0",
@@ -32,9 +36,12 @@
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",
     "recharts": "^2.12.7",
+    "sql.js": "^1.14.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.14.12",
     "@types/react": "^18.2.74",
     "@types/react-dom": "^18.2.24",

@@ -1,55 +1,94 @@
 "use client";
 import Link from "next/link";
-import Image from "next/image";
+import { ArrowRight, Shield, Zap, BarChart3 } from "lucide-react";
 import Button, { buttonClassName } from "@/src/components/Button";
+import GoogleGlyph from "@/src/components/GoogleGlyph";
+import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
+import { useState } from "react";
 
 export default function MosaicHero() {
+  const { user, loading, signInWithGoogle } = useFirebaseAuth();
+  const [authenticating, setAuthenticating] = useState(false);
+
+  async function handleGoogle() {
+    setAuthenticating(true);
+    try {
+      await signInWithGoogle();
+    } catch (err) {
+      console.error("Google sign-in failed", err);
+    } finally {
+      setAuthenticating(false);
+    }
+  }
+
+  const signInDisabled = authenticating || loading;
+
   return (
-    <div
-      className="rounded-2xl p-[1.5px] bg-gradient-to-tr from-accent/70 via-accent/20 to-transparent"
-      id="hero"
-    >
-      <section className="relative overflow-hidden rounded-2xl border border-[#2A2D3A] bg-[#0B0F12] scroll-mt-24">
-        {/* Background image (place your selected hero at public/hero.jpg) */}
+    <div className="space-y-0" id="hero">
+      <section className="relative overflow-hidden rounded-2xl scroll-mt-24">
+        {/* Background */}
         <div className="absolute inset-0">
-          <Image
-            src="/hero.jpg"
-            alt="Data hero"
-            fill
-            priority
-            className="object-cover opacity-60"
-          />
-          {/* Orange/black brand overlay for cohesion */}
-          <div className="absolute inset-0 bg-[radial-gradient(800px_400px_at_15%_20%,rgba(249,115,22,0.22),transparent_60%)]" />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#0B0F12] via-[#0B0F12]/70 to-transparent" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0B0F12]/40 to-transparent" />
+          <div className="absolute inset-0 bg-black" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_900px_400px_at_50%_0%,rgba(255,255,255,0.04),transparent_70%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_600px_300px_at_30%_60%,rgba(255,255,255,0.02),transparent_60%)]" />
+          <div className="absolute top-16 left-1/2 -translate-x-1/2 w-[600px] h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+          <div className="absolute top-[64px] left-1/2 -translate-x-1/2 flex gap-4">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-1 w-1 rounded-full bg-white/20 animate-pulse-glow"
+                style={{ animationDelay: `${i * 300}ms` }}
+              />
+            ))}
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="relative px-5 sm:px-8 md:px-12 py-12 sm:py-16 md:py-24 max-w-6xl mx-auto">
-          <p className="text-xs sm:text-sm tracking-wide text-accent font-semibold">Data Vista</p>
-          <h1 className="mt-2 text-3xl sm:text-4xl md:text-5xl font-semibold tracking-[-0.02em] text-white max-w-3xl leading-tight">
-            Ask in English. See answers in seconds.
-          </h1>
-          <p className="mt-3 md:mt-4 text-gray-300 max-w-2xl text-sm sm:text-base">
-            Data Vista converts natural language into safe, audit-ready SQL and delivers charts or tables on demand. Built for busy teams that need clarity fast without compromising on control.
-          </p>
-          <ul className="mt-6 space-y-2 text-sm text-gray-300 max-w-2xl">
-            <li>- SELECT-only guardrails, single statement, enforced LIMIT</li>
-            <li>- Schema-aware generation with a five-minute schema cache</li>
-            <li>- Ten second execution timeouts with clear, helpful errors</li>
-            <li>- Auto charts (line/bar), CSV export, complete audit trail</li>
-          </ul>
-          <div className="mt-6 sm:mt-8 flex flex-wrap items-center gap-3">
-            <Link href={{ pathname: "/", hash: "ask" }} aria-label="Ask a question">
-              <Button className="shadow-md">Ask Now</Button>
-            </Link>
-            <Link
-              href="/settings/datasources"
-              className={buttonClassName({ variant: "secondary" })}
-            >
-              Connect Database
-            </Link>
+        <div className="relative px-5 sm:px-8 md:px-12 lg:px-16 py-20 sm:py-28 md:py-32 lg:py-40">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-1.5 text-[11px] uppercase tracking-[0.2em] text-grape-300 mb-8 backdrop-blur-sm">
+              <span className="h-1.5 w-1.5 rounded-full bg-white/60 animate-pulse" />
+              Intelligent Data Platform
+            </div>
+
+            <h1 className="animate-fade-in-up text-[2.5rem] sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-[-0.04em] text-white leading-[1.06]" style={{ animationDelay: "100ms" }}>
+              Ask in English.
+              <br />
+              <span className="gradient-text">Get answers instantly.</span>
+            </h1>
+
+            <p className="animate-fade-in-up mt-6 text-grape-400 max-w-xl mx-auto text-base sm:text-lg leading-relaxed" style={{ animationDelay: "200ms" }}>
+              Convert natural language into safe, audit-ready SQL. Get charts, tables, and CSV exports on demand. No SQL expertise required.
+            </p>
+
+            <div className="animate-fade-in-up mt-10 flex flex-col sm:flex-row items-center justify-center gap-3" style={{ animationDelay: "300ms" }}>
+              <button
+                onClick={handleGoogle}
+                disabled={signInDisabled}
+                className="inline-flex h-12 w-full sm:w-auto items-center justify-center rounded-full border border-white/[0.2] bg-white px-7 text-sm font-semibold text-black transition hover:bg-white/95 disabled:cursor-not-allowed disabled:opacity-60 gap-2"
+              >
+                <GoogleGlyph className="h-5 w-5" />
+                {authenticating ? "Connecting..." : "Sign in with Google"}
+              </button>
+              <Link
+                href="mailto:hello@datavista.ai"
+                className={buttonClassName({ variant: "accent", className: "w-full sm:w-auto px-7 py-3" })}
+              >
+                Contact us
+              </Link>
+            </div>
+
+            <div className="animate-fade-in-up mt-12 flex flex-wrap justify-center gap-3" style={{ animationDelay: "400ms" }}>
+              {[
+                { icon: Shield, text: "SELECT-only guardrails" },
+                { icon: Zap, text: "Sub-second schema cache" },
+                { icon: BarChart3, text: "Auto charts & CSV" },
+              ].map(({ icon: Icon, text }) => (
+                <span key={text} className="inline-flex items-center gap-2 rounded-full border border-white/[0.06] bg-white/[0.02] px-3.5 py-2 text-xs text-grape-400 backdrop-blur-sm">
+                  <Icon className="h-3.5 w-3.5 text-grape-300" />
+                  {text}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>

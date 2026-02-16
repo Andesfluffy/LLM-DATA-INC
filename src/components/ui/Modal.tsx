@@ -24,11 +24,11 @@ export default function Modal({ open, onClose, children }: ModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex min-h-screen items-center justify-center px-4 py-12 sm:px-6 sm:py-12">
-      <div className="absolute inset-0 bg-black/65 backdrop-blur" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-md transform rounded-3xl border border-[#2A2D3A] bg-[#0B0F12]/85 p-8 text-slate-100 shadow-[0_24px_64px_rgba(0,0,0,0.55)] transition-all duration-200 md:translate-y-4"
+        className="relative max-h-[calc(100vh-2rem)] w-full max-w-md overflow-y-auto transform rounded-2xl border border-white/[0.08] bg-[#0d0d0d] p-5 sm:p-8 text-grape-200 shadow-2xl transition-all duration-200 backdrop-blur-xl"
       >
         {children}
       </div>

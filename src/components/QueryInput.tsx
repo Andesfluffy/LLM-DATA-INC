@@ -8,11 +8,20 @@ import Textarea from "@/src/components/ui/Textarea";
 const STORAGE_KEY = "recentQueries";
 const MAX_RECENT_ITEMS = 5;
 
+const STARTER_EXAMPLES = [
+  "What are my top 10 best-selling products?",
+  "Show total revenue by month this year",
+  "How many new customers joined last month?",
+  "What's the average order value?",
+  "Which region has the most orders?",
+];
+
 type QueryInputProps = {
   onSubmit: (query: string) => void;
+  threadLength?: number;
 };
 
-export default function QueryInput({ onSubmit }: QueryInputProps) {
+export default function QueryInput({ onSubmit, threadLength = 0 }: QueryInputProps) {
   const [query, setQuery] = useState("");
   const [recent, setRecent] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -29,7 +38,7 @@ export default function QueryInput({ onSubmit }: QueryInputProps) {
         setRecent(parsed.slice(0, MAX_RECENT_ITEMS));
       }
     } catch {
-      // ignore malformed JSON – this is best-effort hydration only
+      // ignore malformed JSON
     }
   }, []);
 
@@ -43,7 +52,7 @@ export default function QueryInput({ onSubmit }: QueryInputProps) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
       setRecent(next);
     } catch {
-      // ignore persistence errors (private browsing, storage quota, etc.)
+      // ignore persistence errors
     }
   }, []);
 
@@ -80,6 +89,8 @@ export default function QueryInput({ onSubmit }: QueryInputProps) {
     [handleSubmit, recent],
   );
 
+  const showStarters = recent.length === 0;
+
   return (
     <form className="space-y-3" onSubmit={onFormSubmit} noValidate>
       <Textarea
@@ -87,7 +98,11 @@ export default function QueryInput({ onSubmit }: QueryInputProps) {
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         rows={3}
-        placeholder="e.g., Revenue by day last 30 days"
+        placeholder={
+          threadLength > 0
+            ? "Ask a follow-up, e.g. \"now filter by last quarter\" or \"break that down by region\""
+            : "Ask a question about your data in plain English, e.g. \"What were our top 5 products last month?\""
+        }
         aria-describedby={recent.length ? recentsLabelId : undefined}
         onKeyDown={(event) => {
           if (event.key === "Enter" && !event.shiftKey) {
@@ -97,10 +112,37 @@ export default function QueryInput({ onSubmit }: QueryInputProps) {
         }}
       />
 
+      <p className="text-[11px] text-grape-500">
+        Tip: Just type your question like you&apos;d ask a colleague. No technical knowledge needed.
+      </p>
+
+      {showStarters && (
+        <div className="space-y-2">
+          <p className="text-xs uppercase tracking-[0.28em] text-grape-400">
+            Try one of these to get started
+          </p>
+          <div className="flex flex-wrap gap-2" role="list">
+            {STARTER_EXAMPLES.map((example) => (
+              <button
+                key={example}
+                type="button"
+                onClick={() => {
+                  setQuery(example);
+                  handleSubmit(example);
+                }}
+                className="px-3 py-1.5 rounded-full border border-white/[0.08] text-xs text-grape-300 transition hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {suggestionButtons.length > 0 && (
         <div className="space-y-2">
-          <p id={recentsLabelId} className="text-xs uppercase tracking-[0.28em] text-slate-400">
-            Recent questions
+          <p id={recentsLabelId} className="text-xs uppercase tracking-[0.28em] text-grape-400">
+            Your recent questions
           </p>
           <div className="flex flex-wrap gap-2" role="list">
             {suggestionButtons.map(({ label, onSelect }) => (
@@ -108,7 +150,7 @@ export default function QueryInput({ onSubmit }: QueryInputProps) {
                 key={label}
                 type="button"
                 onClick={onSelect}
-                className="px-3 py-1.5 rounded-full border border-accent/60 text-xs text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+                className="px-3 py-1.5 rounded-full border border-white/[0.08] text-xs text-grape-300 transition hover:bg-white/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
               >
                 {label}
               </button>

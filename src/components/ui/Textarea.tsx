@@ -11,13 +11,13 @@ const Textarea = React.forwardRef<HTMLTextAreaElement, Props>(
       <div>
         <textarea
           ref={ref}
-          className={`w-full rounded-xl border px-4 py-3 bg-[#23263a]/60 text-slate-100 border-[#23263a]/40 focus:outline-none focus:ring-2 focus:ring-pink-500 shadow-lg backdrop-blur-xl ${className}`}
+          className={`w-full rounded-xl border px-4 py-3 bg-white/[0.03] text-grape-100 border-white/[0.08] focus:outline-none focus:ring-2 focus:ring-white/[0.1] focus:border-white/[0.15] backdrop-blur-md placeholder:text-grape-500 ${className}`}
           {...props}
         />
         {error ? (
-          <p className="mt-1 text-xs text-pink-400">{error}</p>
+          <p className="mt-1 text-xs text-red-400">{error}</p>
         ) : helperText ? (
-          <p className="mt-1 text-xs text-slate-400">{helperText}</p>
+          <p className="mt-1 text-xs text-grape-400">{helperText}</p>
         ) : null}
       </div>
     );

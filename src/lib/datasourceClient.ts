@@ -2,6 +2,7 @@ export type DataSourceSummary = {
   id: string;
   orgId: string | null;
   name: string;
+  type: string | null;
   host: string | null;
   port: number | null;
   database: string | null;
@@ -50,4 +51,29 @@ export async function fetchAccessibleDataSources(): Promise<DataSourceSummary[]>
 
   const list = Array.isArray(payload?.dataSources) ? payload.dataSources : [];
   return list as DataSourceSummary[];
+}
+
+export async function deleteAccessibleDataSource(id: string): Promise<{ ok: boolean; cleanupWarning?: string }> {
+  const idToken = await getIdToken();
+  const res = await fetch(`/api/datasources/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
+    },
+  });
+
+  let payload: any = null;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!res.ok) {
+    const message = payload?.error || `Failed to delete data source (${res.status})`;
+    throw new Error(message);
+  }
+
+  return { ok: Boolean(payload?.ok), cleanupWarning: payload?.cleanupWarning || undefined };
 }

@@ -21,8 +21,8 @@ export default function NavLink({ href, children, className = "", exact = false 
       href={href}
       aria-current={isActive ? "page" : undefined}
       className={clsx(
-        "text-base text-slate-200 hover:text-accent font-medium px-3 py-1 rounded-xl transition",
-        isActive && "bg-white/10 text-white shadow-sm",
+        "text-sm text-grape-400 hover:text-white font-medium px-3 py-2 rounded-lg transition",
+        isActive && "bg-white/[0.06] text-white",
         className,
       )}
     >

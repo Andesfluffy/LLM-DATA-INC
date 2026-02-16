@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import { join } from "path";
 
 import { setAppPrismaClientForTesting } from "@/lib/db";
 import * as authServer from "@/lib/auth-server";
 import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
 import { POST as saveRoute } from "@/app/api/datasources/save/route";
+import { DELETE as deleteRoute } from "@/app/api/datasources/[id]/route";
 
 process.env.DATASOURCE_SECRET_KEY = process.env.DATASOURCE_SECRET_KEY || "01234567890123456789012345678901";
 
@@ -80,6 +83,90 @@ describe("data source access control", () => {
     );
     expect(lookupForSecond).toBeNull();
   });
+
+  it("accepts sqlite saves without host/user/port", async () => {
+    const res = await saveRoute(makeJsonRequest({
+      name: "Local SQLite",
+      type: "sqlite",
+      database: ":memory:",
+    }) as any);
+
+    expect(res.status).toBe(200);
+    const payload = await res.json();
+    const stored = mockContext.store.dataSources.get(payload.id);
+    expect(stored).toBeTruthy();
+    expect(stored?.type).toBe("sqlite");
+    expect(stored?.database).toBe(":memory:");
+    expect(stored?.host ?? null).toBeNull();
+    expect(stored?.user ?? null).toBeNull();
+    expect(stored?.port ?? null).toBeNull();
+  });
+
+  it("rejects csv save calls and requires upload flow", async () => {
+    const res = await saveRoute(makeJsonRequest({
+      name: "Spreadsheet",
+      type: "csv",
+    }) as any);
+
+    expect(res.status).toBe(400);
+    const payload = await res.json();
+    expect(String(payload.error)).toContain("Upload & Connect");
+  });
+
+  it("prevents a second user from deleting another user's data source", async () => {
+    currentAuth = userOne;
+    const createRes = await saveRoute(makeJsonRequest({
+      name: "Protected DS",
+      host: "localhost",
+      port: 5432,
+      database: "postgres",
+      user: "postgres",
+      password: "secret",
+    }) as any);
+    const created = await createRes.json();
+    expect(created.id).toBeTruthy();
+
+    currentAuth = userTwo;
+    const res = await deleteRoute(
+      makeDeleteRequest(created.id) as any,
+      { params: Promise.resolve({ id: created.id }) } as any,
+    );
+    expect(res.status).toBe(404);
+    expect(mockContext.store.dataSources.has(created.id)).toBe(true);
+  });
+
+  it("deletes filesystem-backed csv file when data source is removed", async () => {
+    const { user, org } = await ensureUserAndOrg(userOne, mockContext.prisma as any);
+    currentAuth = userOne;
+
+    const uploadsDir = join(process.cwd(), "uploads");
+    mkdirSync(uploadsDir, { recursive: true });
+    const fileName = `security_test_${Date.now()}_${Math.random().toString(16).slice(2)}.csv`;
+    const relativePath = join("uploads", fileName);
+    const fullPath = join(process.cwd(), relativePath);
+    writeFileSync(fullPath, "a,b\n1,2", "utf-8");
+    expect(existsSync(fullPath)).toBe(true);
+
+    const ds = await mockContext.prisma.dataSource.create({
+      data: {
+        name: "Spreadsheet Upload",
+        type: "csv",
+        orgId: org.id,
+        ownerId: user.id,
+        metadata: { storage: "filesystem", filePath: relativePath, tableName: "data" },
+      },
+    });
+
+    const res = await deleteRoute(
+      makeDeleteRequest(ds.id) as any,
+      { params: Promise.resolve({ id: ds.id }) } as any,
+    );
+    expect(res.status).toBe(200);
+    expect(mockContext.store.dataSources.has(ds.id)).toBe(false);
+    expect(existsSync(fullPath)).toBe(false);
+
+    rmSync(fullPath, { force: true });
+  });
 });
 
 function makeJsonRequest(body: any, init: RequestInit = {}): Request {
@@ -87,6 +174,14 @@ function makeJsonRequest(body: any, init: RequestInit = {}): Request {
     method: "POST",
     headers: { "content-type": "application/json", ...(init.headers || {}) },
     body: JSON.stringify(body),
+    ...init,
+  });
+}
+
+function makeDeleteRequest(id: string, init: RequestInit = {}): Request {
+  return new Request(`http://localhost/api/datasources/${id}`, {
+    method: "DELETE",
+    headers: { ...(init.headers || {}) },
     ...init,
   });
 }
@@ -109,6 +204,7 @@ type DataSourceRecord = {
   urlCiphertext?: string | null;
   urlIv?: string | null;
   urlTag?: string | null;
+  metadata?: any;
   createdAt?: Date;
   updatedAt?: Date;
 };
@@ -128,6 +224,7 @@ type PrismaStub = {
     findFirst(args: any): Promise<DataSourceRecord | null>;
     create(args: any): Promise<DataSourceRecord>;
     update(args: any): Promise<DataSourceRecord>;
+    delete(args: any): Promise<DataSourceRecord>;
   };
   auditLog: { create(args: any): Promise<any> };
 };
@@ -219,6 +316,12 @@ function createMockContext(): { store: Store; prisma: PrismaStub } {
           };
           store.dataSources.set(where.id, updated);
           return updated;
+        },
+        async delete({ where }: any) {
+          const existing = store.dataSources.get(where.id);
+          if (!existing) throw new Error("DataSource not found");
+          store.dataSources.delete(where.id);
+          return existing;
         },
       },
       auditLog: {

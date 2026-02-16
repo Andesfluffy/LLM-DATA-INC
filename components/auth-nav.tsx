@@ -14,7 +14,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 const HERO_REDIRECT_DELAY_MS = 520;
 
 export default function AuthNav() {
-  const { user, loading, signInWithGoogle, signOut: firebaseSignOut } = useFirebaseAuth();
+  const {
+    user,
+    loading,
+    signInWithGoogle,
+    signOut: firebaseSignOut,
+  } = useFirebaseAuth();
   const [authenticating, setAuthenticating] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -54,7 +59,7 @@ export default function AuthNav() {
     setAuthenticating(true);
     try {
       await signInWithGoogle();
-      toast.success("Signed in successfully. Redirecting to the hero.");
+      toast.success("Signed in successfully.");
       signInRedirectTimeout.current = window.setTimeout(() => {
         router.push("/#hero");
       }, HERO_REDIRECT_DELAY_MS);
@@ -72,6 +77,7 @@ export default function AuthNav() {
       await firebaseSignOut();
       setConfirmOpen(false);
       toast.success("Signed out securely.");
+      router.replace("/");
     } catch (error) {
       console.error("Sign out failed", error);
       toast.error("Sign out failed. Please try again.");
@@ -80,8 +86,14 @@ export default function AuthNav() {
     }
   }
 
-  const compactButtonClass = buttonClassName({ variant: "secondary", className: "px-4" });
-  const menuSignOutButtonClass = buttonClassName({ variant: "secondary", className: "w-full justify-start text-left" });
+  const compactButtonClass = buttonClassName({
+    variant: "secondary",
+    className: "px-4",
+  });
+  const menuSignOutButtonClass = buttonClassName({
+    variant: "secondary",
+    className: "w-full justify-start text-left",
+  });
 
   return (
     <div className="flex items-center gap-3">
@@ -92,37 +104,44 @@ export default function AuthNav() {
           <button
             type="button"
             onClick={() => setMenuOpen((prev) => !prev)}
-            className="flex h-9 w-9 items-center justify-center rounded-full border border-accent/70 bg-accent/15 text-sm font-semibold text-accent transition hover:bg-accent/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-white/[0.12] bg-white/[0.06] text-sm font-semibold text-white transition hover:bg-white/[0.1] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
             aria-label="Account menu"
           >
-            {(user.displayName || user.email || "").slice(0, 1).toUpperCase() || "G"}
+            {(user.displayName || user.email || "").slice(0, 1).toUpperCase() ||
+              "G"}
           </button>
           {menuOpen && (
-            <div className="absolute right-0 mt-3 w-56 rounded-2xl border border-[#2A2D3A] bg-[#0B0F12]/95 p-4 text-left shadow-xl backdrop-blur">
+            <div className="absolute right-0 mt-3 w-56 rounded-xl border border-white/[0.08] bg-[#0d0d0d] p-4 text-left shadow-xl backdrop-blur-xl">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-white">
                   {user.displayName || user.email?.split("@")[0] || "Account"}
                 </p>
                 {user.email ? (
-                  <p className="break-all text-xs text-slate-400">{user.email}</p>
+                  <p className="break-all text-xs text-grape-500">
+                    {user.email}
+                  </p>
                 ) : null}
               </div>
-              <div className="mt-4 space-y-2 text-xs text-slate-300">
+              <div className="mt-4 space-y-2 text-xs text-grape-300">
                 <Link
                   href="/history"
-                  className="flex items-center justify-between rounded-xl border border-transparent bg-[#111726]/70 px-3 py-2 transition hover:border-accent/50 hover:text-white"
+                  className="flex items-center justify-between rounded-lg border border-transparent bg-white/[0.03] px-3 py-2 transition hover:border-white/[0.1] hover:text-white"
                   onClick={() => setMenuOpen(false)}
                 >
                   History
-                  <span className="text-[10px] uppercase tracking-[0.24em] text-accent">H</span>
+                  <span className="text-[10px] uppercase tracking-[0.24em] text-grape-500">
+                    H
+                  </span>
                 </Link>
                 <Link
                   href="/settings/datasources"
-                  className="flex items-center justify-between rounded-xl border border-transparent bg-[#111726]/70 px-3 py-2 transition hover:border-accent/50 hover:text-white"
+                  className="flex items-center justify-between rounded-lg border border-transparent bg-white/[0.03] px-3 py-2 transition hover:border-white/[0.1] hover:text-white"
                   onClick={() => setMenuOpen(false)}
                 >
                   Data sources
-                  <span className="text-[10px] uppercase tracking-[0.24em] text-accent">S</span>
+                  <span className="text-[10px] uppercase tracking-[0.24em] text-grape-500">
+                    S
+                  </span>
                 </Link>
                 <button
                   type="button"
@@ -150,22 +169,38 @@ export default function AuthNav() {
         </button>
       )}
 
-      <Modal open={confirmOpen} onClose={() => { if (!signingOut) setConfirmOpen(false); }}>
+      <Modal
+        open={confirmOpen}
+        onClose={() => {
+          if (!signingOut) setConfirmOpen(false);
+        }}
+      >
         <div className="space-y-5 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white/[0.05] text-white">
             <LogOut className="h-5 w-5" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-base font-semibold text-white">Ready to sign out?</h2>
-            <p className="text-xs leading-relaxed text-slate-300">
-              Your secure session will close immediately. You can reconnect with Google SSO anytime.
+            <h2 className="text-base font-semibold text-white">
+              Ready to sign out?
+            </h2>
+            <p className="text-xs leading-relaxed text-grape-400">
+              Your secure session will close immediately. You can reconnect with
+              Google SSO anytime.
             </p>
           </div>
           <div className="flex justify-center gap-3">
-            <Button variant="ghost" onClick={() => setConfirmOpen(false)} disabled={signingOut}>
+            <Button
+              variant="ghost"
+              onClick={() => setConfirmOpen(false)}
+              disabled={signingOut}
+            >
               Stay
             </Button>
-            <Button variant="secondary" onClick={handleSignOut} disabled={signingOut}>
+            <Button
+              variant="secondary"
+              onClick={handleSignOut}
+              disabled={signingOut}
+            >
               {signingOut ? "Signing out..." : "Sign out"}
             </Button>
           </div>

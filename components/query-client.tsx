@@ -189,7 +189,7 @@ export default function QueryClient({ canRun }: QueryClientProps) {
               }}
             />
             <div className="flex flex-wrap gap-2">
-              <Button onClick={handleGenerate} disabled={!canRun || isGenerating || !prompt.trim()}>
+              <Button onClick={handleGenerate} disabled={!canRun || isGenerating || !prompt.trim()} className="w-full sm:w-auto">
                 {isGenerating ? "Generating…" : "Generate SQL"}
               </Button>
             </div>
@@ -211,10 +211,10 @@ export default function QueryClient({ canRun }: QueryClientProps) {
             aria-label="Generated SQL"
           />
           <div className="flex flex-wrap gap-2">
-            <Button onClick={handleRun} disabled={!canRun || isRunning || !sql.trim()}>
+            <Button onClick={handleRun} disabled={!canRun || isRunning || !sql.trim()} className="w-full sm:w-auto">
               {isRunning ? "Running…" : "Run"}
             </Button>
-            <Button onClick={handleExport} disabled={!canRun || isRunning || !sql.trim()} variant="secondary">
+            <Button onClick={handleExport} disabled={!canRun || isRunning || !sql.trim()} variant="secondary" className="w-full sm:w-auto">
               Export CSV
             </Button>
           </div>

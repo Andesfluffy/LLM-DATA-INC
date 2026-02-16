@@ -1,24 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getUserFromRequest } from "@/lib/auth-server";
+import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { encryptPassword } from "@/lib/datasourceSecrets";
 import { ensureUserAndOrg } from "@/lib/userOrg";
+import { getConnector } from "@/lib/connectors/registry";
+import "@/lib/connectors/init";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {
   const userAuth = await getUserFromRequest(req);
-  if (!userAuth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const Body = z.object({ name: z.string().min(1), host: z.string().min(1), port: z.coerce.number().int().positive(), database: z.string().min(1), user: z.string().min(1), password: z.string().optional() });
+  if (!userAuth) return NextResponse.json({ error: AUTH_ERROR_MESSAGE }, { status: 401 });
+
+  const Body = z.object({
+    name: z.string().min(1),
+    type: z.string().default("postgres"),
+    host: z.string().optional(),
+    port: z.coerce.number().int().positive().optional(),
+    database: z.string().optional(),
+    user: z.string().optional(),
+    password: z.string().optional(),
+  });
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
   const body = parsed.data;
-  const { host, port, database, user, name } = body;
+  const { name, type } = body;
+
+  if (type === "csv") {
+    return NextResponse.json(
+      { error: "Spreadsheet sources are created via file upload. Use 'Upload & Connect' for CSV/Excel files." },
+      { status: 400 },
+    );
+  }
+
+  let factory;
+  try {
+    factory = getConnector(type);
+  } catch (error: any) {
+    return NextResponse.json({ error: error?.message || "Unsupported connector type" }, { status: 400 });
+  }
+
+  const validation = factory.validateParams(body as Record<string, unknown>);
+  if (!validation.ok) {
+    return NextResponse.json({ error: validation.errors.join(". ") }, { status: 400 });
+  }
+
   const { user: dbUser, org } = await ensureUserAndOrg(userAuth);
   const hasPassword = Object.prototype.hasOwnProperty.call(body, "password");
   const password = hasPassword ? body.password : undefined;
+  const usesPassword = type === "postgres" || type === "mysql";
 
   let passwordFields: Partial<Record<string, string | null>> = {};
-  if (hasPassword) {
+  if (usesPassword && hasPassword) {
     if (password) {
       try {
         const encrypted = encryptPassword(password);
@@ -40,9 +73,19 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  const host = type === "sqlite" ? null : (body.host || null);
+  const port = type === "sqlite" ? null : (body.port ?? null);
+  const database = body.database || null;
+  const user = type === "sqlite" ? null : (body.user || null);
+
   const matchers = [
-    name ? { name } : undefined,
-    host && database ? { AND: [{ host }, { database }] } : undefined,
+    name ? { AND: [{ type }, { name }] } : undefined,
+    type === "sqlite" && database
+      ? { AND: [{ type: "sqlite" }, { database }] }
+      : undefined,
+    (type === "postgres" || type === "mysql") && host && database
+      ? { AND: [{ type }, { host }, { database }] }
+      : undefined,
   ].filter(Boolean);
 
   const existing = await prisma.dataSource.findFirst({
@@ -59,13 +102,18 @@ export async function POST(req: NextRequest) {
         data: {
           orgId: org.id,
           ownerId: dbUser.id,
-          type: "postgres",
+          type,
           name: name || existing.name,
           host,
-          port: Number(port),
+          port,
           database,
           user,
-          ...passwordFields,
+          ...(usesPassword ? passwordFields : {
+            passwordCiphertext: null,
+            passwordIv: null,
+            passwordTag: null,
+          }),
+          metadata: type === "sqlite" ? null : existing.metadata,
           urlCiphertext: null,
           urlIv: null,
           urlTag: null,
@@ -75,16 +123,17 @@ export async function POST(req: NextRequest) {
         data: {
           orgId: org.id,
           ownerId: dbUser.id,
-          type: "postgres",
+          type,
           name: name || `${database}@${host}`,
           host,
-          port: Number(port),
+          port,
           database,
           user,
-          ...passwordFields,
+          ...(usesPassword ? passwordFields : {}),
           urlCiphertext: null,
           urlIv: null,
           urlTag: null,
+          metadata: null,
         },
       });
 

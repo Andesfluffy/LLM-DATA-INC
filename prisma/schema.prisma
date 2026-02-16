@@ -24,6 +24,10 @@ model User {
   dataSources   DataSource[]
   audits        QueryAudit[]
   auditLogs     AuditLog[]
+  glossaryTerms GlossaryTerm[]
+  savedQueries  SavedQuery[]
+  dashboards    Dashboard[]
+  onboardingComplete Boolean @default(false)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -87,6 +91,8 @@ model DataSource {
   ownerId   String?
   owner     User?    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
 
+  metadata  Json?
+
     queryAudits QueryAudit[]
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
@@ -117,6 +123,9 @@ model Org {
   users       User[]
   datasources DataSource[]
   auditLogs   AuditLog[]
+  glossaryTerms GlossaryTerm[]
+  savedQueries  SavedQuery[]
+  dashboards    Dashboard[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -134,4 +143,71 @@ model AuditLog {
   createdAt  DateTime @default(now())
 
   @@index([userId])
+}
+
+model GlossaryTerm {
+  id          String   @id @default(cuid())
+  orgId       String
+  org         Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  term        String
+  definition  String
+  description String?
+  category    String   @default("metric")
+  createdById String?
+  createdBy   User?    @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([orgId, term])
+  @@index([orgId])
+}
+
+model SavedQuery {
+  id         String   @id @default(cuid())
+  orgId      String
+  org        Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String?
+  question   String
+  sql        String?
+  isFavorite Boolean  @default(false)
+  isShared   Boolean  @default(false)
+  tags       String[] @default([])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  widgets       DashboardWidget[]
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([orgId, isShared])
+}
+
+model Dashboard {
+  id        String            @id @default(cuid())
+  orgId     String
+  org       Org               @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String            @default("My Dashboard")
+  widgets   DashboardWidget[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@index([orgId])
+  @@index([userId])
+}
+
+model DashboardWidget {
+  id           String     @id @default(cuid())
+  dashboardId  String
+  dashboard    Dashboard  @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  savedQueryId String
+  savedQuery   SavedQuery @relation(fields: [savedQueryId], references: [id], onDelete: Cascade)
+  position     Int        @default(0)
+  displayType  String     @default("table")
+  createdAt    DateTime   @default(now())
+
+  @@index([dashboardId])
 }

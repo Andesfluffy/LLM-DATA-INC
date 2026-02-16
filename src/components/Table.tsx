@@ -6,20 +6,25 @@ type Props = {
 
 export default function Table({ fields, rows, className = "" }: Props) {
   return (
-    <div className={`overflow-auto border border-[#23263a]/40 rounded-2xl bg-[#23263a]/60 shadow-lg backdrop-blur-xl ${className}`}>
-      <table className="min-w-full text-base">
+    <div className={`overflow-x-auto border border-white/[0.06] rounded-xl bg-white/[0.01] backdrop-blur-md ${className}`}>
+      <table className="min-w-[560px] sm:min-w-full text-xs sm:text-sm">
         <thead className="sticky top-0">
           <tr>
             {fields.map((h) => (
-              <th key={h} className="text-left px-4 py-3 border-b border-[#23263a]/40 text-slate-200 bg-[#23263a]/80 font-semibold tracking-tight backdrop-blur-xl">{h}</th>
+              <th
+                key={h}
+                className="whitespace-nowrap text-left px-3 py-2.5 sm:px-4 sm:py-3 border-b border-white/[0.06] text-grape-300 bg-white/[0.02] font-semibold tracking-tight backdrop-blur-xl"
+              >
+                {h}
+              </th>
             ))}
           </tr>
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className={`${i % 2 ? "bg-[#23263a]/40" : "bg-[#23263a]/60"} animate-fade-in`}> 
+            <tr key={i} className={`${i % 2 ? "bg-white/[0.015]" : "bg-transparent"} animate-fade-in`}>
               {fields.map((h) => (
-                <td key={h} className="px-4 py-3 align-top border-b border-[#23263a]/40 font-mono text-slate-100">
+                <td key={h} className="max-w-[220px] px-3 py-2.5 sm:px-4 sm:py-3 align-top border-b border-white/[0.04] font-mono text-grape-200 break-words whitespace-pre-wrap">
                   {formatCell((r as any)[h])}
                 </td>
               ))}

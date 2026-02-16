@@ -11,19 +11,19 @@ export default function Input({ label, helperText, error, className = "", id, ..
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={inputId} className="block text-sm font-medium text-gray-200 mb-1">
+        <label htmlFor={inputId} className="block text-sm font-medium text-grape-200 mb-1.5">
           {label}
         </label>
       )}
       <input
         id={inputId}
-        className={`w-full rounded-md border px-3 py-2 bg-[#0B0F12]/60 text-gray-100 placeholder:text-gray-500 border-[#2A2D3A] focus:outline-none focus:ring-2 ${error ? "focus:ring-red-500/40 border-red-500/50" : "focus:ring-accent/40"} ${className}`}
+        className={`w-full rounded-xl border px-4 py-2.5 bg-white/[0.03] text-grape-100 placeholder:text-grape-500 border-white/[0.08] focus:outline-none focus:ring-2 focus:border-white/[0.15] transition-colors ${error ? "focus:ring-red-400/40 border-red-400/50" : "focus:ring-white/[0.1]"} ${className}`}
         {...props}
       />
       {error ? (
-        <p className="mt-1 text-xs text-red-300">{error}</p>
+        <p className="mt-1.5 text-xs text-red-400">{error}</p>
       ) : helperText ? (
-        <p className="mt-1 text-xs text-gray-400">{helperText}</p>
+        <p className="mt-1.5 text-xs text-grape-500">{helperText}</p>
       ) : null}
     </div>
   );

@@ -2,12 +2,17 @@ const FORBIDDEN = [
   /\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|call|execute|copy|vacuum|analyze|reset|set|show|explain|listen|unlisten|notify)\b/i,
 ];
 
-const IDENTIFIER_PATTERN_SOURCE = '"(?:""|[^"])*"|[a-zA-Z_][\\w$]*';
+const IDENTIFIER_PATTERN_SOURCE =
+  '"(?:""|[^"])*"|`(?:``|[^`])*`|\\[(?:\\]|[^\\]])+\\]|[a-zA-Z_][\\w$]*';
 
 function normalizeIdentifier(identifier: string): string {
   let trimmed = identifier.trim();
   if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
     trimmed = trimmed.slice(1, -1).replace(/""/g, '"');
+  } else if (trimmed.startsWith('`') && trimmed.endsWith('`')) {
+    trimmed = trimmed.slice(1, -1).replace(/``/g, "`");
+  } else if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+    trimmed = trimmed.slice(1, -1).replace(/]]/g, "]");
   }
   return trimmed.toLowerCase();
 }
@@ -32,7 +37,7 @@ export function validateSql(sqlInput: string, allowedTables: string[]): { ok: tr
   const tableTokens = new Map<string, string>();
   const fromJoinRe = /\b(from|join)\b/gi;
   const tablePattern = new RegExp(
-    `^\\s*(?:${IDENTIFIER_PATTERN_SOURCE})(?:\\s*\\.\\s*(?:${IDENTIFIER_PATTERN_SOURCE}))?`,
+    `^\\s*(?:${IDENTIFIER_PATTERN_SOURCE})(?:\\s*\\.\\s*(?:${IDENTIFIER_PATTERN_SOURCE})){0,2}`,
   );
   let m: RegExpExecArray | null;
   while ((m = fromJoinRe.exec(sql)) !== null) {

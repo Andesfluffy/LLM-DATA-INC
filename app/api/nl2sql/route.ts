@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
-import { getSchemaSummary } from "@/lib/schema";
-import { openaiClient, pickModel } from "@/lib/openai";
-import { validateSql, enforceLimit } from "@/lib/guardrails";
+import { prisma as appPrisma } from "@/lib/db";
+import { nlToSql } from "@/src/server/generateSql";
 import { getUserFromRequest } from "@/lib/auth-server";
-import { getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
 import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
+import { getGlossaryContext } from "@/lib/glossary";
+import { getConnector } from "@/lib/connectors/registry";
+import { getGuardrails } from "@/lib/connectors/guards";
+import "@/lib/connectors/init";
 import { z } from "zod";
 import crypto from "crypto";
 
@@ -17,88 +18,72 @@ export async function POST(req: NextRequest) {
   const Body = z.object({ orgId: z.string().min(1), datasourceId: z.string().min(1), prompt: z.string().min(1) });
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+
   const { orgId, datasourceId, prompt } = parsed.data;
   const { user: dbUser, org } = await ensureUserAndOrg(user);
 
   const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
-  let url: string;
-  try {
-    url = getDataSourceConnectionUrl(ds);
-  } catch (error) {
-    console.error("Failed to resolve data source connection", error);
-    return NextResponse.json({ error: "Data source credentials unavailable" }, { status: 500 });
-  }
-  const prisma = getPrismaForUrl(url);
-  const schema = await getSchemaSummary(prisma, url);
-  const schemaHash = crypto.createHash('sha256').update(schema).digest('hex');
 
-  // NL→SQL cache (30s)
+  const factory = getConnector(ds.type || "postgres");
+  const client = await factory.createClient(ds);
+  const guards = getGuardrails(factory.dialect);
   const cacheOrgId = ds.orgId ?? org.id;
-  const key = `${cacheOrgId}|${schemaHash}|${crypto.createHash('sha256').update(prompt).digest('hex')}`;
-  if (nlCache.has(key)) {
-    const item = nlCache.get(key)!;
-    if (item.expiresAt > Date.now()) {
-      return NextResponse.json({ sql: item.sql });
-    }
-    nlCache.delete(key);
-  }
 
-  const system = `You are a SQL assistant for PostgreSQL. Output ONLY a single SELECT statement.
-- Use fully qualified table names only if schemas are not public.
-- Prefer simple, readable SQL. Use CTEs only when necessary.
-- NEVER modify data. No INSERT/UPDATE/DELETE/DDL.
-- Always include an explicit LIMIT 100 if appropriate.`;
-
-  const userMessage = `Schema:
-${schema}
-
-Task: Write a single, safe SELECT for:
-"""
-${prompt}
-"""
-Output only SQL, no explanations.`;
-
-  let generated = "";
   try {
-    const model = pickModel();
-    const resp = await openaiClient.chat.completions.create({
-      model,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: userMessage }
-      ],
-      temperature: 0.1,
+    const schemaKey = `${ds.id}:${ds.type}`;
+    const schema = await client.getSchema(schemaKey);
+    const schemaHash = crypto.createHash("sha256").update(schema).digest("hex");
+
+    const glossaryCtx = await getGlossaryContext(cacheOrgId);
+    const glossaryHash = glossaryCtx
+      ? crypto.createHash("sha256").update(glossaryCtx).digest("hex").slice(0, 8)
+      : "";
+
+    const key = `${cacheOrgId}|${schemaHash}|${glossaryHash}|${crypto.createHash("sha256").update(prompt).digest("hex")}`;
+    const cached = nlCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return NextResponse.json({ sql: cached.sql });
+    }
+
+    const generated = await nlToSql({
+      question: prompt,
+      schema,
+      orgContext: glossaryCtx || undefined,
+      dialect: factory.dialect,
     });
-    generated = (resp.choices?.[0]?.message?.content || "").trim();
-  } catch (e: any) {
-    // Audit
-    await appPrisma.auditLog.create({ data: { orgId: cacheOrgId, userId: dbUser.id, question: prompt, sql: null, durationMs: Date.now() - t0, rowCount: null } });
-    return NextResponse.json({ error: "LLM error" }, { status: 500 });
-  }
 
-  const allowedTables = await getAllowedTables(prisma);
-  const guard = validateSql(generated, allowedTables);
-  if (!guard.ok) {
-    await appPrisma.auditLog.create({ data: { orgId: cacheOrgId, userId: dbUser.id, question: prompt, sql: generated, durationMs: Date.now() - t0, rowCount: null } });
-    return NextResponse.json({ error: `Guardrails rejected SQL: ${guard.reason}` }, { status: 400 });
-  }
+    if (!guards.isSelectOnly(generated)) {
+      await appPrisma.auditLog.create({
+        data: { orgId: cacheOrgId, userId: dbUser.id, question: prompt, sql: generated, durationMs: Date.now() - t0, rowCount: null },
+      });
+      return NextResponse.json({ error: "Only read-only SELECT queries are allowed" }, { status: 400 });
+    }
 
-  const limited = enforceLimit(generated, 1000);
-  await appPrisma.auditLog.create({ data: { orgId: cacheOrgId, userId: dbUser.id, question: prompt, sql: limited, durationMs: Date.now() - t0, rowCount: null } });
-  nlCache.set(key, { sql: limited, expiresAt: Date.now() + 30_000 });
-  return NextResponse.json({ sql: limited });
+    const allowedTables = await client.getAllowedTables();
+    const guard = guards.validateSql(generated, allowedTables);
+    if (!guard.ok) {
+      await appPrisma.auditLog.create({
+        data: { orgId: cacheOrgId, userId: dbUser.id, question: prompt, sql: generated, durationMs: Date.now() - t0, rowCount: null },
+      });
+      return NextResponse.json({ error: `Guardrails rejected SQL: ${guard.reason}` }, { status: 400 });
+    }
+
+    const limited = guards.enforceLimit(generated, 1000);
+    await appPrisma.auditLog.create({
+      data: { orgId: cacheOrgId, userId: dbUser.id, question: prompt, sql: limited, durationMs: Date.now() - t0, rowCount: null },
+    });
+    nlCache.set(key, { sql: limited, expiresAt: Date.now() + 30_000 });
+
+    return NextResponse.json({ sql: limited });
+  } catch {
+    await appPrisma.auditLog.create({
+      data: { orgId: cacheOrgId, userId: dbUser.id, question: prompt, sql: null, durationMs: Date.now() - t0, rowCount: null },
+    });
+    return NextResponse.json({ error: "Failed to generate SQL" }, { status: 500 });
+  } finally {
+    await client.disconnect();
+  }
 }
 
-async function getAllowedTables(prisma: any): Promise<string[]> {
-  const rows: Array<{ schema: string; table: string }> = await prisma.$queryRawUnsafe(
-    `SELECT table_schema as schema, table_name as table
-     FROM information_schema.tables
-     WHERE table_schema NOT IN ('pg_catalog','information_schema')
-       AND table_type = 'BASE TABLE'`
-  );
-  return rows.map((r) => (r.schema === 'public' ? r.table : `${r.schema}.${r.table}`));
-}
-
-// simple NL→SQL cache
 const nlCache = new Map<string, { sql: string; expiresAt: number }>();

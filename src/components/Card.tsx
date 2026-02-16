@@ -8,12 +8,10 @@ type CardProps = HTMLAttributes<HTMLDivElement> & {
 export default function Card({ children, className = "", ...props }: CardProps) {
   return (
     <div
-      className="rounded-2xl p-[1.5px] bg-gradient-to-tr from-accent/70 via-accent/20 to-transparent"
+      className={`rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6 backdrop-blur-md ${className}`}
       {...props}
     >
-      <div className={`card rounded-2xl border border-[#2A2D3A] ${className}`}>
-        {children}
-      </div>
+      {children}
     </div>
   );
 }
@@ -26,11 +24,11 @@ export function CardHeader({
   subtitle?: string;
 }) {
   return (
-    <div className="pb-4 mb-2 border-b border-[#2A2D3A]">
-      <h2 className="text-2xl font-bold text-white tracking-tight drop-shadow mb-1 heading-font">
+    <div className="pb-4 mb-2 border-b border-white/[0.06]">
+      <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight mb-0.5">
         {title}
       </h2>
-      {subtitle && <p className="text-sm text-gray-300 mt-1">{subtitle}</p>}
+      {subtitle && <p className="text-sm text-grape-400 mt-1">{subtitle}</p>}
     </div>
   );
 }
@@ -43,6 +41,6 @@ export function CardBody({
   className?: string;
 }) {
   return (
-    <div className={`pt-2 pb-4 text-gray-100 ${className}`}>{children}</div>
+    <div className={`pt-2 pb-4 text-grape-300 ${className}`}>{children}</div>
   );
 }

@@ -9,25 +9,25 @@ export default function CodeBlock({ code }: { code: string }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-accent/40">
-      <div className="flex items-center justify-between border-b border-accent/20 bg-gray-50 px-3 py-2 dark:bg-gray-800/70">
+    <div className="overflow-hidden rounded-xl border border-white/[0.06]">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] bg-white/[0.02] px-3 py-2">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="rounded-full border border-accent/60 px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-xs font-medium text-grape-400 transition hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
         >
           {open ? 'Hide SQL' : 'Show SQL'}
         </button>
         <button
           type="button"
           onClick={copy}
-          className="rounded-full border border-accent px-3 py-1.5 text-xs font-medium text-accent transition hover:bg-accent/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
+          className="rounded-lg border border-white/[0.08] px-3 py-1.5 text-xs font-medium text-grape-400 transition hover:bg-white/[0.04] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
         >
           Copy
         </button>
       </div>
       {open && (
-        <pre className="overflow-auto bg-white p-3 text-sm dark:bg-gray-900">
+        <pre className="overflow-auto bg-black p-4 text-sm text-grape-200">
           <code>{code}</code>
         </pre>
       )}
