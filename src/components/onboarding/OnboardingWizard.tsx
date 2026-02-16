@@ -240,20 +240,12 @@ export default function OnboardingWizard({
     setSaving(true);
     try {
       const headers = await getAuthHeaders();
-      const res = await fetch("/api/datasources/save", {
+      const res = await fetch("/api/datasources/demo", {
         method: "POST",
         headers,
-        body: JSON.stringify({
-          name: "Demo Database",
-          type: "postgres",
-          host: "localhost",
-          port: 5432,
-          database: "datavista_demo",
-          user: "postgres",
-          password: "",
-        }),
       });
       const payload = await res.json();
+      if (!res.ok) throw new Error(payload?.error || "Failed to set up demo");
       if (payload.id) {
         localStorage.setItem("datasourceId", payload.id);
         if (payload.orgId) localStorage.setItem("orgId", payload.orgId);

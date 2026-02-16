@@ -152,6 +152,13 @@ export default function HomePage() {
     return () => { cancelled = true; };
   }, []);
 
+  // Allow re-opening the tutorial from the user menu
+  useEffect(() => {
+    const handler = () => setShowOnboarding(true);
+    window.addEventListener("show-tutorial", handler);
+    return () => window.removeEventListener("show-tutorial", handler);
+  }, []);
+
   const handleOnboardingComplete = useCallback(() => {
     setShowOnboarding(false);
     syncFromLocalStorage();

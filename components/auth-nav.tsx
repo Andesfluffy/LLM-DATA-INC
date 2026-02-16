@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { BookOpen, LogOut } from "lucide-react";
 import { toast } from "@/src/components/ui/Toast";
 import Button, { buttonClassName } from "@/src/components/Button";
 import GoogleGlyph from "@/src/components/GoogleGlyph";
@@ -77,7 +77,7 @@ export default function AuthNav() {
       await firebaseSignOut();
       setConfirmOpen(false);
       toast.success("Signed out securely.");
-      router.replace("/");
+      window.location.href = "/";
     } catch (error) {
       console.error("Sign out failed", error);
       toast.error("Sign out failed. Please try again.");
@@ -143,6 +143,23 @@ export default function AuthNav() {
                     S
                   </span>
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    window.dispatchEvent(new CustomEvent("show-tutorial"));
+                    router.push("/");
+                  }}
+                  className="flex w-full items-center justify-between rounded-lg border border-transparent bg-white/[0.03] px-3 py-2 transition hover:border-white/[0.1] hover:text-white"
+                >
+                  <span className="flex items-center gap-2">
+                    <BookOpen className="h-3.5 w-3.5" />
+                    Tutorial
+                  </span>
+                  <span className="text-[10px] uppercase tracking-[0.24em] text-grape-500">
+                    T
+                  </span>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
