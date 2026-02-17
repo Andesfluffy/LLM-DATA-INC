@@ -18,6 +18,10 @@ model User {
   image         String?
   accounts      Account[]
   sessions      Session[]
+  memberships   OrgMembership[]
+  secretRotations SecretRotationEvent[]
+  allowlistEntries IpAllowlistEntry[]
+  alertConfigsUpdated AlertConfig[]
   // Optional org relation for org-scoped data sources and logs
   orgId         String?
   org           Org?      @relation(fields: [orgId], references: [id])
@@ -55,7 +59,19 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  userAgent    String?
+  ipAddress    String?
+  deviceName   String?
+  lastSeenAt   DateTime?
+  revokedAt    DateTime?
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum OrgRole {
+  owner
+  admin
+  analyst
+  viewer
 }
 
 model VerificationToken {
@@ -121,8 +137,12 @@ model Org {
   id          String       @id @default(cuid())
   name        String
   users       User[]
+  memberships OrgMembership[]
   datasources DataSource[]
   auditLogs   AuditLog[]
+  secretRotations SecretRotationEvent[]
+  ipAllowlist IpAllowlistEntry[]
+  alertConfigs AlertConfig[]
   glossaryTerms GlossaryTerm[]
   savedQueries  SavedQuery[]
   dashboards    Dashboard[]
@@ -136,13 +156,75 @@ model AuditLog {
   org        Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
   userId     String?
   user       User?    @relation(fields: [userId], references: [id])
-  question   String
+  action     String   @default("query.executed")
+  question   String?
   sql        String?
+  targetType String?
+  targetId   String?
+  metadata   Json?
   durationMs Int?
   rowCount   Int?
   createdAt  DateTime @default(now())
 
   @@index([userId])
+}
+
+model OrgMembership {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  role      OrgRole  @default(viewer)
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([orgId, userId])
+  @@index([userId])
+}
+
+model SecretRotationEvent {
+  id          String   @id @default(cuid())
+  orgId       String
+  org         Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  datasourceId String?
+  status      String   @default("completed")
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  @@index([orgId])
+}
+
+model IpAllowlistEntry {
+  id        String   @id @default(cuid())
+  orgId     String
+  org       Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  cidr      String
+  label     String?
+  enabled   Boolean  @default(true)
+  createdById String?
+  createdBy User?    @relation(fields: [createdById], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([orgId, enabled])
+}
+
+model AlertConfig {
+  id              String   @id @default(cuid())
+  orgId           String
+  org             Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  name            String
+  condition       String
+  destination     String
+  enabled         Boolean  @default(true)
+  updatedById     String?
+  updatedBy       User?    @relation(fields: [updatedById], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([orgId])
 }
 
 model GlossaryTerm {

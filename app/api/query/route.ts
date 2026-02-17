@@ -8,7 +8,9 @@ import { buildDatasetOverviewResult, isDatasetOverviewQuestion } from "@/lib/dat
 import { getGlossaryContext } from "@/lib/glossary";
 import { getGuardrails } from "@/lib/connectors/guards";
 import { getConnector } from "@/lib/connectors/registry";
-import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
+import { findAccessibleDataSource } from "@/lib/userOrg";
+import { assertIpAllowlisted, getRequestIp, requireOrgPermission } from "@/lib/rbac";
+import { logAuditEvent } from "@/lib/auditLog";
 import { nlToSql } from "@/src/server/generateSql";
 import "@/lib/connectors/init";
 
@@ -33,7 +35,12 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { orgId, datasourceId, question, history } = parsed.data;
-  const { user: dbUser, org } = await ensureUserAndOrg(userAuth);
+  const access = await requireOrgPermission(userAuth, "reporting:run", orgId);
+  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { user: dbUser, org } = access;
+  if (!(await assertIpAllowlisted(org.id, getRequestIp(req.headers)))) {
+    return NextResponse.json({ error: "IP address not allowed" }, { status: 403 });
+  }
 
   const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
   if (!ds) {
@@ -61,16 +68,7 @@ export async function POST(req: NextRequest) {
       const durationMs = Date.now() - t0;
 
       await Promise.all([
-        prisma.auditLog.create({
-          data: {
-            orgId: resolvedOrgId,
-            userId: dbUser.id,
-            question,
-            sql,
-            durationMs,
-            rowCount: overview.rowCount,
-          },
-        }),
+        logAuditEvent({ orgId: resolvedOrgId, userId: dbUser.id, action: "report.generated", question, sql, durationMs, rowCount: overview.rowCount, targetType: "datasource", targetId: ds.id }),
         prisma.savedQuery.create({
           data: {
             orgId: resolvedOrgId,
@@ -139,16 +137,7 @@ export async function POST(req: NextRequest) {
 
     const durationMs = Date.now() - t0;
     await Promise.all([
-      prisma.auditLog.create({
-        data: {
-          orgId: resolvedOrgId,
-          userId: dbUser.id,
-          question,
-          sql,
-          durationMs,
-          rowCount: result.rowCount,
-        },
-      }),
+      logAuditEvent({ orgId: resolvedOrgId, userId: dbUser.id, action: "report.generated", question, sql, durationMs, rowCount: result.rowCount, targetType: "datasource", targetId: ds.id }),
       prisma.savedQuery.create({
         data: {
           orgId: resolvedOrgId,

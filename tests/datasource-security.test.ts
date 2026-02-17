@@ -220,6 +220,7 @@ type Store = {
 type PrismaStub = {
   org: { upsert(args: any): Promise<any> };
   user: { upsert(args: any): Promise<any> };
+  orgMembership: { upsert(args: any): Promise<any>; findUnique(args: any): Promise<any> };
   dataSource: {
     findFirst(args: any): Promise<DataSourceRecord | null>;
     create(args: any): Promise<DataSourceRecord>;
@@ -284,6 +285,21 @@ function createMockContext(): { store: Store; prisma: PrismaStub } {
           store.users.set(where.id, record);
           ensureMembership(record.orgId, where.id);
           return record;
+        },
+      },
+      orgMembership: {
+        async upsert({ where, create }: any) {
+          const orgId = where?.orgId_userId?.orgId ?? create.orgId;
+          const userId = where?.orgId_userId?.userId ?? create.userId;
+          ensureMembership(orgId, userId);
+          return { orgId, userId, role: create.role ?? "viewer" };
+        },
+        async findUnique({ where }: any) {
+          const orgId = where?.orgId_userId?.orgId;
+          const userId = where?.orgId_userId?.userId;
+          const members = store.memberships.get(orgId ?? "") ?? new Set();
+          if (!orgId || !userId || !members.has(userId)) return null;
+          return { orgId, userId, role: orgId === `org_${userId}` ? "owner" : "viewer" };
         },
       },
       dataSource: {
@@ -370,9 +386,9 @@ function matchesDataSource(ds: DataSourceRecord, where: any, memberships: Member
     }
   }
 
-  if (where.org?.users?.some?.id) {
+  if (where.org?.memberships?.some?.userId) {
     const members = memberships.get(ds.orgId ?? "") ?? new Set<string>();
-    if (!members.has(where.org.users.some.id)) {
+    if (!members.has(where.org.memberships.some.userId)) {
       return false;
     }
   }

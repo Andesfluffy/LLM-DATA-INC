@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
-import { ensureUserAndOrg } from "@/lib/userOrg";
+import { requireOrgPermission } from "@/lib/rbac";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
@@ -11,7 +11,9 @@ export async function GET(req: NextRequest) {
   const orgId = req.nextUrl.searchParams.get("orgId");
   if (!orgId) return NextResponse.json({ error: "orgId required" }, { status: 400 });
 
-  const { org } = await ensureUserAndOrg(user);
+  const access = await requireOrgPermission(user, "settings:read", orgId);
+  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { org } = access;
   if (org.id !== orgId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const terms = await prisma.glossaryTerm.findMany({
@@ -38,8 +40,9 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { orgId, term, definition, description, category } = parsed.data;
-  const { user: dbUser, org } = await ensureUserAndOrg(user);
-  if (org.id !== orgId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const access = await requireOrgPermission(user, "settings:write", orgId);
+  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { user: dbUser, org } = access;
 
   const created = await prisma.glossaryTerm.create({
     data: {

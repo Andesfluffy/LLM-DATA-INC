@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { encryptPassword } from "@/lib/datasourceSecrets";
-import { ensureUserAndOrg } from "@/lib/userOrg";
 import { getConnector } from "@/lib/connectors/registry";
 import "@/lib/connectors/init";
+import { requireOrgPermission } from "@/lib/rbac";
+import { logAuditEvent } from "@/lib/auditLog";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {
@@ -45,7 +46,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validation.errors.join(". ") }, { status: 400 });
   }
 
-  const { user: dbUser, org } = await ensureUserAndOrg(userAuth);
+  const access = await requireOrgPermission(userAuth, "datasource:edit");
+  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { user: dbUser, org } = access;
   const hasPassword = Object.prototype.hasOwnProperty.call(body, "password");
   const password = hasPassword ? body.password : undefined;
   const usesPassword = type === "postgres" || type === "mysql";
@@ -136,6 +139,15 @@ export async function POST(req: NextRequest) {
           metadata: null,
         },
       });
+
+  await logAuditEvent({
+    orgId: org.id,
+    userId: dbUser.id,
+    action: existing ? "datasource.scope_changed" : "datasource.connect",
+    targetType: "datasource",
+    targetId: ds.id,
+    metadata: { type: ds.type, name: ds.name },
+  });
 
   return NextResponse.json({ id: ds.id, orgId: ds.orgId, ownerId: ds.ownerId });
 }

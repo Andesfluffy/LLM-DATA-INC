@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toCSV } from "@/lib/csv";
 import { getUserFromRequest } from "@/lib/auth-server";
-import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
+import { findAccessibleDataSource } from "@/lib/userOrg";
+import { assertIpAllowlisted, getRequestIp, requireOrgPermission } from "@/lib/rbac";
+import { logAuditEvent } from "@/lib/auditLog";
 import { getConnector } from "@/lib/connectors/registry";
 import { getGuardrails } from "@/lib/connectors/guards";
 import "@/lib/connectors/init";
@@ -16,7 +18,12 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { orgId, datasourceId, sql } = parsed.data;
-  const { user: dbUser } = await ensureUserAndOrg(user);
+  const access = await requireOrgPermission(user, "reporting:run", orgId);
+  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { user: dbUser, org } = access;
+  if (!(await assertIpAllowlisted(org.id, getRequestIp(req.headers)))) {
+    return NextResponse.json({ error: "IP address not allowed" }, { status: 403 });
+  }
 
   const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
@@ -35,6 +42,17 @@ export async function POST(req: NextRequest) {
     const limited = guards.enforceLimit(sql, 10000);
     const result = await client.executeQuery(limited, { timeoutMs: 10000 });
     const csv = toCSV(result.rows);
+
+    await logAuditEvent({
+      orgId: org.id,
+      userId: dbUser.id,
+      action: "report.generated",
+      sql: limited,
+      targetType: "datasource",
+      targetId: ds.id,
+      rowCount: result.rows.length,
+      metadata: { format: "csv" },
+    });
 
     return new NextResponse(csv, {
       headers: {

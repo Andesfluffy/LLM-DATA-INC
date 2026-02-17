@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
-import { ensureUserAndOrg } from "@/lib/userOrg";
+import { requireOrgPermission } from "@/lib/rbac";
 import { z } from "zod";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -21,12 +21,12 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
   const parsed = UpdateBody.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { org } = await ensureUserAndOrg(user);
-
   const existing = await prisma.glossaryTerm.findUnique({ where: { id } });
-  if (!existing || existing.orgId !== org.id) {
+  if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  const access = await requireOrgPermission(user, "settings:write", existing.orgId);
+  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const data: Record<string, unknown> = {};
   if (parsed.data.term !== undefined) data.term = parsed.data.term.toLowerCase().trim();
@@ -43,12 +43,12 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await ctx.params;
-  const { org } = await ensureUserAndOrg(user);
-
   const existing = await prisma.glossaryTerm.findUnique({ where: { id } });
-  if (!existing || existing.orgId !== org.id) {
+  if (!existing) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
+  const access = await requireOrgPermission(user, "settings:write", existing.orgId);
+  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await prisma.glossaryTerm.delete({ where: { id } });
   return NextResponse.json({ ok: true });

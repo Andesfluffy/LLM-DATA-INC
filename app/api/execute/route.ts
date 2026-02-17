@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma as appPrisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
-import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
+import { findAccessibleDataSource } from "@/lib/userOrg";
 import { getConnector } from "@/lib/connectors/registry";
 import { getGuardrails } from "@/lib/connectors/guards";
+import { assertIpAllowlisted, getRequestIp, requireOrgPermission } from "@/lib/rbac";
+import { logAuditEvent } from "@/lib/auditLog";
 import "@/lib/connectors/init";
 import { z } from "zod";
 
@@ -17,7 +18,12 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { orgId, datasourceId, sql } = parsed.data;
-  const { user: dbUser, org } = await ensureUserAndOrg(user);
+  const access = await requireOrgPermission(user, "reporting:run", orgId);
+  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { user: dbUser, org } = access;
+  if (!(await assertIpAllowlisted(org.id, getRequestIp(req.headers)))) {
+    return NextResponse.json({ error: "IP address not allowed" }, { status: 403 });
+  }
 
   const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
@@ -36,29 +42,11 @@ export async function POST(req: NextRequest) {
 
     limited = guards.enforceLimit(sql, 5000);
     const result = await client.executeQuery(limited, { timeoutMs: 10000 });
-    await appPrisma.auditLog.create({
-      data: {
-        orgId: ds.orgId ?? org.id,
-        userId: dbUser.id,
-        question: "",
-        sql: limited,
-        durationMs: Date.now() - t0,
-        rowCount: result.rowCount,
-      },
-    });
+    await logAuditEvent({ orgId: ds.orgId ?? org.id, userId: dbUser.id, action: "report.executed", question: "", sql: limited, durationMs: Date.now() - t0, rowCount: result.rowCount, targetType: "datasource", targetId: ds.id });
 
     return NextResponse.json({ fields: result.fields, rows: result.rows });
   } catch (e: any) {
-    await appPrisma.auditLog.create({
-      data: {
-        orgId: ds.orgId ?? org.id,
-        userId: dbUser.id,
-        question: "",
-        sql: limited,
-        durationMs: Date.now() - t0,
-        rowCount: null,
-      },
-    });
+    await logAuditEvent({ orgId: ds.orgId ?? org.id, userId: dbUser.id, action: "report.execute_failed", question: "", sql: limited, durationMs: Date.now() - t0, rowCount: null, targetType: "datasource", targetId: ds.id });
 
     const msg = String(e?.message || e);
     const isTimeout = /statement timeout|canceling statement|max_execution_time|timed out/i.test(msg);
