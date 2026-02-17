@@ -19,10 +19,14 @@ export async function GET(req: NextRequest) {
         { org: { users: { some: { id: user.id } } } },
       ],
     },
+    include: { tableScopes: { select: { tableName: true }, orderBy: { tableName: "asc" } } },
     orderBy: { createdAt: "desc" },
   });
 
   return NextResponse.json({
-    dataSources: dataSources.map((ds: any) => redactDataSourceSecrets(ds)),
+    dataSources: dataSources.map((ds: any) => ({
+      ...redactDataSourceSecrets(ds),
+      scopedTables: (ds.tableScopes || []).map((scope: any) => scope.tableName),
+    })),
   });
 }

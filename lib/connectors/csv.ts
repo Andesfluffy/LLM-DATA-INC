@@ -208,7 +208,7 @@ class CsvClient implements ConnectorClient {
     }
   }
 
-  async getSchema(): Promise<string> {
+  async getSchema(opts?: { cacheKey?: string; allowedTables?: string[] }): Promise<string> {
     const db = await this.ensureDb();
     const result = db.exec(`PRAGMA table_info("${this.tableName}")`);
     if (!result.length) return "";
@@ -216,11 +216,22 @@ class CsvClient implements ConnectorClient {
     const lines = result[0].values.map(
       (row: any[]) => `${this.tableName}.${row[1]} ${row[2] || "TEXT"}`
     );
-    return lines.join("\n");
+    const ddl = lines.join("\n");
+    const allowlist = opts?.allowedTables;
+    if (!allowlist) return ddl;
+    const allowed = new Set(allowlist.map((table) => table.toLowerCase()));
+    return ddl
+      .split("\n")
+      .filter(Boolean)
+      .filter((line) => allowed.has(line.slice(0, line.lastIndexOf(".")).toLowerCase()))
+      .join("\n");
   }
 
-  async getAllowedTables(): Promise<string[]> {
-    return [this.tableName];
+  async getAllowedTables(allowedTables?: string[]): Promise<string[]> {
+    const discovered = [this.tableName];
+    if (!allowedTables) return discovered;
+    const allowed = new Set(allowedTables.map((table) => table.toLowerCase()));
+    return discovered.filter((table) => allowed.has(String(table).toLowerCase()));
   }
 
   async executeQuery(
