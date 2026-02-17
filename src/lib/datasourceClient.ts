@@ -10,7 +10,17 @@ export type DataSourceSummary = {
   hasPassword?: boolean;
   createdAt?: string;
   updatedAt?: string;
-  scopedTables?: string[];
+  integrationSummary?: Record<string, {
+    platform: string;
+    mode: "api_key" | "oauth";
+    hasSecret: boolean;
+    sync: {
+      status: "idle" | "syncing" | "ok" | "error";
+      error?: string | null;
+      lastSuccessfulSyncAt?: string;
+      lastSyncAttemptAt?: string;
+    };
+  } | null>;
 };
 
 async function getIdToken(): Promise<string | undefined> {
