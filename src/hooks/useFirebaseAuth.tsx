@@ -1,8 +1,7 @@
 "use client";
 
-import { authReady, googleProvider } from "@/lib/firebase/client";
+import { authReady, getRealAuth, googleProvider } from "@/lib/firebase/client";
 import {
-  getAuth,
   onAuthStateChanged,
   signInWithPopup,
   signOut as firebaseSignOut,
@@ -43,11 +42,11 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
 
     authReady().then(() => {
       if (unmounted) return;
-      // Use the real auth instance directly — NOT the Proxy export.
+      // Use the real auth instance — NOT the Proxy export.
       // Firebase's onAuthStateChanged uses getModularInstance() internally
-      // which cannot unwrap a JS Proxy, causing the listener to silently
-      // fail to receive state changes after signInWithPopup.
-      const realAuth = getAuth();
+      // which cannot unwrap a JS Proxy, so listeners registered against
+      // the Proxy silently fail to receive state changes.
+      const realAuth = getRealAuth();
       unsub = onAuthStateChanged(realAuth, (firebaseUser) => {
         setState({ user: firebaseUser, loading: false });
       });
@@ -61,7 +60,7 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = useCallback(async () => {
     await authReady();
-    const realAuth = getAuth();
+    const realAuth = getRealAuth();
     const result = await signInWithPopup(realAuth, googleProvider);
     // Update state immediately — don't wait for onAuthStateChanged round-trip
     setState({ user: result.user, loading: false });
@@ -69,7 +68,7 @@ export function FirebaseAuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    const realAuth = getAuth();
+    const realAuth = getRealAuth();
     await firebaseSignOut(realAuth);
     setState({ user: null, loading: false });
   }, []);

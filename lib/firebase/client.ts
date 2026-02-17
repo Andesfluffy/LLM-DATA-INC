@@ -45,7 +45,16 @@ function getSessionAuth() {
   }
   return a;
 }
-export const authReady = () => _authReady ?? Promise.resolve();
+/** Ensures the app + auth are initialized and persistence is configured. */
+export function authReady() {
+  // Trigger lazy init so _authReady is always set before we return.
+  getSessionAuth();
+  return _authReady!;
+}
+/** Return the real Auth instance (not a Proxy). Safe to pass to Firebase SDK functions. */
+export function getRealAuth() {
+  return getSessionAuth();
+}
 export const auth = new Proxy({} as ReturnType<typeof getAuth>, {
   get(_t, p) { return (getSessionAuth() as any)[p]; },
 });
