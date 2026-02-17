@@ -17,6 +17,14 @@ import { uploadCsvFile, getAuthHeaders } from "@/lib/uploadUtils";
 
 type ConnectorType = "postgres" | "mysql" | "sqlite" | "csv";
 
+type EntitlementState = {
+  plan: "free" | "pro" | "growth" | "enterprise";
+  features: {
+    manualCsv: boolean;
+    liveDb: boolean;
+  };
+};
+
 type FormState = {
   type: ConnectorType;
   name: string;
@@ -65,6 +73,7 @@ export default function DataSourcesSettingsPage() {
   const [dataSources, setDataSources] = useState<DataSourceSummary[]>([]);
   const [activeDatasourceId, setActiveDatasourceId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [entitlements, setEntitlements] = useState<EntitlementState | null>(null);
 
   useEffect(() => {
     try {
@@ -157,9 +166,27 @@ export default function DataSourcesSettingsPage() {
     return await getAuthHeaders();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/entitlements", { headers: await authHeaders() });
+        if (!res.ok) return;
+        const payload = await res.json();
+        if (!cancelled) setEntitlements(payload);
+      } catch {
+        // Ignore entitlement fetch failures; API checks still enforce plan.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authHeaders]);
+
   const isSpreadsheet = form.type === "csv";
-  const supportsSaveConnection = form.type !== "csv";
-  const supportsTest = form.type !== "csv";
+  const canUseLiveDb = entitlements?.features.liveDb ?? true;
+  const supportsSaveConnection = form.type !== "csv" && canUseLiveDb;
+  const supportsTest = form.type !== "csv" && canUseLiveDb;
 
   const buildConnectionPayload = useCallback(() => {
     if (form.type === "sqlite") {
@@ -409,6 +436,13 @@ export default function DataSourcesSettingsPage() {
                     </div>
                   )}
 
+                  {!canUseLiveDb && (
+                    <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                      Your current <strong>{entitlements?.plan || "free"}</strong> plan supports manual CSV uploads only.
+                      Upgrade to <strong>Pro</strong> to connect live databases.
+                    </div>
+                  )}
+
                   {/* Connector type selector */}
                   <div>
                     <label className="block text-sm font-medium text-grape-100 mb-1.5">Database Type</label>
@@ -418,22 +452,30 @@ export default function DataSourcesSettingsPage() {
                         { type: "mysql" as ConnectorType, label: "MySQL" },
                         { type: "sqlite" as ConnectorType, label: "SQLite" },
                         { type: "csv" as ConnectorType, label: "Spreadsheet Upload" },
-                      ]).map(({ type, label }) => (
+                      ]).map(({ type, label }) => {
+                        const disabledForPlan = !canUseLiveDb && type !== "csv";
+                        return (
                         <button
                           key={type}
                           type="button"
                           onClick={() => {
+                            if (disabledForPlan) {
+                              setSaveOk(false);
+                              setSaveMsg("Upgrade to Pro to unlock live database connections.");
+                              return;
+                            }
                             setForm((prev) => ({ ...prev, type, port: portDefaults[type] || prev.port }));
                           }}
+                          disabled={disabledForPlan}
                           className={`rounded-lg border px-3 py-2 text-xs sm:px-4 sm:text-sm font-medium transition-all ${
                             form.type === type
                               ? "border-white/[0.1] bg-white/[0.05] text-white"
                               : "border-white/[0.08] text-grape-300 hover:border-white/[0.1] hover:text-white"
-                          }`}
+                          } ${disabledForPlan ? "opacity-50 cursor-not-allowed" : ""}`}
                         >
                           {label}
                         </button>
-                      ))}
+                      );})}
                     </div>
                   </div>
 

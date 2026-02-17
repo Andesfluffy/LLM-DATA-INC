@@ -31,6 +31,7 @@ export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [upgradePrompt, setUpgradePrompt] = useState<string | null>(null);
 
   const getAuth = useCallback(async () => {
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
@@ -47,7 +48,15 @@ export default function DashboardPage() {
 
       // Get or create dashboard
       const listRes = await fetch("/api/dashboards", { headers });
-      if (!listRes.ok) throw new Error("Failed to load dashboards");
+      if (!listRes.ok) {
+        const payload = await listRes.json().catch(() => ({}));
+        if (listRes.status === 403 && payload?.code === "ENTITLEMENT_REQUIRED") {
+          setUpgradePrompt(payload?.error || "Upgrade your plan to use dashboards.");
+          setDashboard(null);
+          return;
+        }
+        throw new Error("Failed to load dashboards");
+      }
       const listData = await listRes.json();
 
       let dashboardId: string;
@@ -73,6 +82,7 @@ export default function DashboardPage() {
       }
     } catch (e: any) {
       console.error("Dashboard load failed:", e);
+      setUpgradePrompt(null);
     } finally {
       setLoading(false);
     }
@@ -138,14 +148,23 @@ export default function DashboardPage() {
               <p className="text-sm text-grape-400">Your pinned queries, updated live</p>
             </div>
           </div>
-          <Button variant="primary" onClick={() => setShowAddModal(true)} className="w-full sm:w-auto">
+          <Button variant="primary" onClick={() => setShowAddModal(true)} className="w-full sm:w-auto" disabled={Boolean(upgradePrompt)}>
             <Plus className="h-4 w-4" />
             Add Widget
           </Button>
         </div>
 
         {/* Content */}
-        {loading ? (
+        {upgradePrompt ? (
+          <Card>
+            <CardBody>
+              <EmptyState
+                title="Upgrade required"
+                message={`${upgradePrompt} Visit Settings → Billing to upgrade and unlock weekly reporting dashboards.`}
+              />
+            </CardBody>
+          </Card>
+        ) : loading ? (
           <div className="flex items-center gap-2 py-16 justify-center text-sm text-grape-300">
             <Loader2 className="h-5 w-5 animate-spin" />
             Loading your dashboard...

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { parseCompactSchema } from "@/lib/schemaParser";
+import { blockedEntitlementResponse, resolveOrgEntitlements } from "@/lib/entitlements";
+import { ensureUserAndOrg } from "@/lib/userOrg";
 import { z } from "zod";
 
 const MAX_TABLES = 50;
@@ -22,6 +24,15 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { type, ...params } = parsed.data;
+  const { org } = await ensureUserAndOrg(userAuth);
+  const entitlements = await resolveOrgEntitlements(org.id);
+
+  if (!entitlements.features.liveDb) {
+    return NextResponse.json(
+      blockedEntitlementResponse("Live database schema preview", entitlements, "pro"),
+      { status: 403 }
+    );
+  }
 
   try {
     let ddl = "";

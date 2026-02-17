@@ -120,6 +120,7 @@ model QueryAudit {
 model Org {
   id          String       @id @default(cuid())
   name        String
+  subscription Subscription?
   users       User[]
   datasources DataSource[]
   auditLogs   AuditLog[]
@@ -128,6 +129,35 @@ model Org {
   dashboards    Dashboard[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+}
+
+enum BillingPlan {
+  FREE
+  PRO
+  GROWTH
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
+}
+
+model Subscription {
+  id        String             @id @default(cuid())
+  orgId     String             @unique
+  org       Org                @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan      BillingPlan        @default(FREE)
+  status    SubscriptionStatus @default(ACTIVE)
+  seats     Int                @default(1)
+  limits    Json?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([plan])
+  @@index([status])
 }
 
 model AuditLog {
