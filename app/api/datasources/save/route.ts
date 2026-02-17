@@ -20,12 +20,13 @@ export async function POST(req: NextRequest) {
     database: z.string().optional(),
     user: z.string().optional(),
     password: z.string().optional(),
+    monitoredTables: z.array(z.string().min(1)).optional(),
   });
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const body = parsed.data;
-  const { name, type } = body;
+  const { name, type, monitoredTables } = body;
 
   if (type === "csv") {
     return NextResponse.json(
@@ -98,6 +99,18 @@ export async function POST(req: NextRequest) {
       ...(matchers.length ? { OR: matchers } : {}),
     },
   });
+
+  const maxSources = typeof entitlements.limits.maxSources === "number" ? entitlements.limits.maxSources : null;
+  const countFn = (prisma.dataSource as any).count;
+  if (!existing && maxSources && typeof countFn === "function") {
+    const sourceCount = await countFn({ where: { orgId: org.id } });
+    if (sourceCount >= maxSources) {
+      return NextResponse.json(
+        blockedEntitlementResponse("Additional data sources", entitlements, "pro"),
+        { status: 403 }
+      );
+    }
+  }
 
   const ds = existing
     ? await prisma.dataSource.update({

@@ -33,7 +33,11 @@ export async function POST(req: NextRequest) {
   const guards = getGuardrails(factory.dialect);
 
   try {
-    const allowedTables = await client.getAllowedTables();
+    const scopedTables = await getPersistedDatasourceScope(ds.id);
+    if (!scopedTables.length) {
+      return NextResponse.json({ error: "No monitored tables selected for this data source. Update scope in Settings." }, { status: 400 });
+    }
+    const allowedTables = await client.getAllowedTables(scopedTables);
     const guard = guards.validateSql(sql, allowedTables);
     if (!guard.ok) {
       return NextResponse.json({ error: `Guardrails rejected SQL: ${guard.reason}` }, { status: 400 });

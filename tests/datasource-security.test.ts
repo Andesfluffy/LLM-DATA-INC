@@ -212,6 +212,7 @@ type DataSourceRecord = {
 type Store = {
   users: Map<string, any>;
   orgs: Map<string, any>;
+  monitorSchedules: Map<string, any>;
   dataSources: Map<string, DataSourceRecord>;
   auditLogs: any[];
   memberships: MembershipMap;
@@ -235,6 +236,7 @@ function createMockContext(): { store: Store; prisma: PrismaStub } {
   const store: Store = {
     users: new Map(),
     orgs: new Map(),
+    monitorSchedules: new Map(),
     dataSources: new Map(),
     auditLogs: [],
     memberships: new Map(),

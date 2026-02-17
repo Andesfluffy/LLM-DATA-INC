@@ -58,8 +58,12 @@ export async function POST(req: NextRequest) {
   const resolvedOrgId = ds.orgId ?? org.id;
 
   try {
+    const scopedTables = await getPersistedDatasourceScope(ds.id);
+    if (!scopedTables.length) {
+      return NextResponse.json({ error: "No monitored tables selected for this data source. Update scope in Settings." }, { status: 400 });
+    }
     const schemaKey = `${ds.id}:${ds.type}`;
-    const schema = await client.getSchema(schemaKey);
+    const schema = await client.getSchema({ cacheKey: schemaKey, allowedTables: scopedTables });
 
     // Non-technical path: return a direct schema overview.
     if (isDatasetOverviewQuestion(question)) {
@@ -120,7 +124,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const allowedTables = await client.getAllowedTables();
+    const allowedTables = await client.getAllowedTables(scopedTables);
     const guardResult = guards.validateSql(sqlRaw, allowedTables);
     if (!guardResult.ok) {
       return NextResponse.json(

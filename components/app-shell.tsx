@@ -61,6 +61,7 @@ function AppShellInner({ children }: AppShellProps) {
               Home
             </NavLink>
             <NavLink href="/history">History</NavLink>
+            <NavLink href="/reports">Reports</NavLink>
             <NavLink href="/settings/glossary" exact={false}>
               Glossary
             </NavLink>
@@ -96,6 +97,12 @@ function AppShellInner({ children }: AppShellProps) {
                   className="block rounded-lg px-3 py-2.5 text-sm text-grape-300 transition hover:bg-white/[0.04] hover:text-white"
                 >
                   History
+                </Link>
+                <Link
+                  href="/reports"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-grape-300 transition hover:bg-white/[0.04] hover:text-white"
+                >
+                  Reports
                 </Link>
                 <Link
                   href="/settings/glossary"
@@ -171,6 +178,14 @@ function AppShellInner({ children }: AppShellProps) {
                     className="text-sm text-grape-400 transition hover:text-white"
                   >
                     History
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/reports"
+                    className="text-sm text-grape-400 transition hover:text-white"
+                  >
+                    Reports
                   </Link>
                 </li>
                 <li>

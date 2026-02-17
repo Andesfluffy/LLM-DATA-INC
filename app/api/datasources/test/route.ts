@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { getConnector } from "@/lib/connectors/registry";
+import { blockedEntitlementResponse, resolveOrgEntitlements } from "@/lib/entitlements";
+import { ensureUserAndOrg } from "@/lib/userOrg";
 import "@/lib/connectors/init";
 import { z } from "zod";
 
@@ -20,11 +22,20 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const { type, ...params } = parsed.data;
+  const { org } = await ensureUserAndOrg(userAuth);
+  const entitlements = await resolveOrgEntitlements(org.id);
 
   if (type === "csv") {
     return NextResponse.json(
       { error: "Spreadsheet uploads are tested during upload. Use 'Upload & Connect' for CSV/Excel files." },
       { status: 400 }
+    );
+  }
+
+  if (!entitlements.features.liveDb) {
+    return NextResponse.json(
+      blockedEntitlementResponse("Live database connections", entitlements, "pro"),
+      { status: 403 }
     );
   }
 

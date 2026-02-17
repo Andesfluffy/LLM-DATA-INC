@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
+import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { getConnector } from "@/lib/connectors/registry";
 import { parseCompactSchema } from "@/lib/schemaParser";
+import { blockedEntitlementResponse, resolveOrgEntitlements } from "@/lib/entitlements";
 import "@/lib/connectors/init";
 
 export async function GET(req: NextRequest) {
@@ -18,17 +20,26 @@ export async function GET(req: NextRequest) {
   }
 
   const { user: dbUser } = await ensureUserAndOrg(userAuth);
+  const entitlements = await resolveOrgEntitlements(orgId);
   const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
   if (!ds) return NextResponse.json({ error: "Data source not found" }, { status: 404 });
+
+  if (ds.type !== "csv" && !entitlements.features.liveDb) {
+    return NextResponse.json(
+      blockedEntitlementResponse("Live database schema inspection", entitlements, "pro"),
+      { status: 403 }
+    );
+  }
 
   const factory = getConnector(ds.type || "postgres");
   const client = await factory.createClient(ds);
 
   try {
+    const scopedTables = await getPersistedDatasourceScope(ds.id);
     const schemaKey = `${ds.id}:${ds.type}`;
-    const ddl = await client.getSchema(schemaKey);
+    const ddl = await client.getSchema({ cacheKey: schemaKey });
     const tables = parseCompactSchema(ddl);
-    return NextResponse.json({ tables });
+    return NextResponse.json({ tables, scopedTables });
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message || "Failed to fetch schema info" },
