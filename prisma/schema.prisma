@@ -141,8 +141,8 @@ model Org {
   glossaryTerms GlossaryTerm[]
   savedQueries  SavedQuery[]
   dashboards    Dashboard[]
-  metricSnapshots BusinessMetricSnapshot[]
-  healthScores    BusinessHealthScore[]
+  weeklyBusinessReports WeeklyBusinessReport[]
+  reportDeliveryLogs    ReportDeliveryLog[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -301,40 +301,54 @@ model DashboardWidget {
   @@index([dashboardId])
 }
 
-model BusinessMetricSnapshot {
-  id                String     @id @default(cuid())
-  orgId             String
-  org               Org        @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  datasourceId      String
-  datasource        DataSource @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
-  periodGranularity String
-  periodStart       DateTime
-  periodEnd         DateTime
-  metricKey         String
-  metricValue       Float?
-  confidence        String     @default("low")
-  sourceMissing     Boolean    @default(false)
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+model WeeklyBusinessReport {
+  id              String          @id @default(cuid())
+  orgId           String
+  org             Org             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  periodStart     DateTime
+  periodEnd       DateTime
+  status          String          @default("generated")
+  healthScore     Int?
+  summary         String?
+  markdownContent String
+  jsonContent     Json
+  sections        ReportSection[]
+  deliveries      ReportDeliveryLog[]
+  generatedAt     DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
-  @@unique([orgId, datasourceId, periodGranularity, periodStart, periodEnd, metricKey])
-  @@index([orgId, datasourceId, periodGranularity, periodStart])
+  @@index([orgId, periodStart, periodEnd])
+  @@unique([orgId, periodStart, periodEnd])
 }
 
-model BusinessHealthScore {
-  id                     String     @id @default(cuid())
-  orgId                  String
-  org                    Org        @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  datasourceId           String
-  datasource             DataSource @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
-  periodGranularity      String
-  periodStart            DateTime
-  periodEnd              DateTime
-  score                  Float
-  componentContributions Json?
-  createdAt              DateTime   @default(now())
-  updatedAt              DateTime   @updatedAt
+model ReportSection {
+  id         String               @id @default(cuid())
+  reportId   String
+  report     WeeklyBusinessReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  key        String
+  title      String
+  markdown   String
+  jsonData   Json
+  sortOrder  Int                  @default(0)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
 
-  @@unique([orgId, datasourceId, periodGranularity, periodStart, periodEnd])
-  @@index([orgId, datasourceId, periodGranularity, periodStart])
+  @@index([reportId, sortOrder])
+}
+
+model ReportDeliveryLog {
+  id         String               @id @default(cuid())
+  orgId      String
+  org        Org                  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  reportId   String
+  report     WeeklyBusinessReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  channel    String               @default("in_app")
+  status     String               @default("delivered")
+  deliveredTo String?
+  metadata   Json?
+  createdAt  DateTime             @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([reportId])
 }
