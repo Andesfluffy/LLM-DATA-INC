@@ -13,7 +13,7 @@ type FindParams = {
 type PrismaClientLike = {
   org: { upsert(args: any): Promise<Org> };
   user: { upsert(args: any): Promise<User> };
-  orgMonitorSchedule: { upsert(args: any): Promise<any> };
+  orgMembership?: { upsert(args: any): Promise<any> };
   dataSource: { findFirst(args: any): Promise<DataSource | null> };
 };
 
@@ -54,17 +54,13 @@ export async function ensureUserAndOrg(
     },
   });
 
-  await client.orgMonitorSchedule.upsert({
-    where: { orgId: org.id },
-    update: {},
-    create: {
-      orgId: org.id,
-      weeklyReportDay: 1,
-      weeklyReportHour: 9,
-      weeklyReportMinute: 0,
-      timezone: "UTC",
-    },
-  });
+  if (client.orgMembership) {
+    await client.orgMembership.upsert({
+      where: { orgId_userId: { orgId: org.id, userId: user.id } },
+      update: {},
+      create: { orgId: org.id, userId: user.id, role: "owner" },
+    });
+  }
 
   return { user, org };
 }
@@ -81,7 +77,7 @@ export async function findAccessibleDataSource(
     id: params.datasourceId,
     OR: [
       { ownerId: params.userId },
-      { org: { users: { some: { id: params.userId } } } },
+      { org: { memberships: { some: { userId: params.userId } } } },
     ],
   };
 
