@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db";
 import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { encryptPassword } from "@/lib/datasourceSecrets";
 import { ensureUserAndOrg } from "@/lib/userOrg";
-import { getPersistedDatasourceScope, replaceDatasourceScope } from "@/lib/datasourceScope";
+import { blockedEntitlementResponse, resolveOrgEntitlements } from "@/lib/entitlements";
 import { getConnector } from "@/lib/connectors/registry";
 import "@/lib/connectors/init";
 import { z } from "zod";
@@ -48,6 +48,14 @@ export async function POST(req: NextRequest) {
   }
 
   const { user: dbUser, org } = await ensureUserAndOrg(userAuth);
+  const entitlements = await resolveOrgEntitlements(org.id);
+  if (!entitlements.features.liveDb) {
+    return NextResponse.json(
+      blockedEntitlementResponse("Live database connections", entitlements, "pro"),
+      { status: 403 }
+    );
+  }
+
   const hasPassword = Object.prototype.hasOwnProperty.call(body, "password");
   const password = hasPassword ? body.password : undefined;
   const usesPassword = type === "postgres" || type === "mysql";
@@ -98,8 +106,17 @@ export async function POST(req: NextRequest) {
     },
   });
 
-
-  const previousScope = existing ? await getPersistedDatasourceScope(existing.id) : [];
+  const maxSources = typeof entitlements.limits.maxSources === "number" ? entitlements.limits.maxSources : null;
+  const countFn = (prisma.dataSource as any).count;
+  if (!existing && maxSources && typeof countFn === "function") {
+    const sourceCount = await countFn({ where: { orgId: org.id } });
+    if (sourceCount >= maxSources) {
+      return NextResponse.json(
+        blockedEntitlementResponse("Additional data sources", entitlements, "pro"),
+        { status: 403 }
+      );
+    }
+  }
 
   const ds = existing
     ? await prisma.dataSource.update({

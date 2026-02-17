@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { ensureUserAndOrg } from "@/lib/userOrg";
+import { blockedEntitlementResponse, resolveOrgEntitlements } from "@/lib/entitlements";
 import { cleanupStaleUploadFiles, deleteManagedUploadFile, extractCsvFilePath } from "@/lib/csvStorage";
 import { replaceDatasourceScope } from "@/lib/datasourceScope";
 import { parse } from "csv-parse/sync";
@@ -168,6 +169,11 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: AUTH_ERROR_MESSAGE }, { status: 401 });
 
   const { user: dbUser, org } = await ensureUserAndOrg(user);
+  const entitlements = await resolveOrgEntitlements(org.id);
+  if (!entitlements.features.manualCsv) {
+    return NextResponse.json(blockedEntitlementResponse("Manual CSV uploads", entitlements, "free"), { status: 403 });
+  }
+
 
   const retentionDays = Number(process.env.CSV_UPLOAD_RETENTION_DAYS || DEFAULT_RETENTION_DAYS);
   if (Number.isFinite(retentionDays) && retentionDays > 0) {
@@ -254,6 +260,18 @@ export async function POST(req: NextRequest) {
   });
 
   const previousFilePath = extractCsvFilePath(existing?.metadata);
+
+  const maxSources = typeof entitlements.limits.maxSources === "number" ? entitlements.limits.maxSources : null;
+  const countFn = (prisma.dataSource as any).count;
+  if (!existing && maxSources && typeof countFn === "function") {
+    const sourceCount = await countFn({ where: { orgId: org.id } });
+    if (sourceCount >= maxSources) {
+      return NextResponse.json(
+        blockedEntitlementResponse("Additional data sources", entitlements, "pro"),
+        { status: 403 },
+      );
+    }
+  }
 
   const ds = existing
     ? await prisma.dataSource.update({

@@ -132,6 +132,7 @@ model QueryAudit {
 model Org {
   id          String       @id @default(cuid())
   name        String
+  subscription Subscription?
   users       User[]
   datasources DataSource[]
   monitorSchedule OrgMonitorSchedule?
@@ -150,94 +151,33 @@ model Org {
   updatedAt   DateTime     @updatedAt
 }
 
-enum AlertChannel {
-  EMAIL
-  IN_APP
+enum BillingPlan {
+  FREE
+  PRO
+  GROWTH
+  ENTERPRISE
 }
 
-enum AlertEventStatus {
-  SENT
-  SUPPRESSED_COOLDOWN
-  DELIVERY_FAILED
+enum SubscriptionStatus {
+  ACTIVE
+  TRIALING
+  PAST_DUE
+  CANCELED
 }
 
-enum DeliveryStatus {
-  SENT
-  FAILED
-}
+model Subscription {
+  id        String             @id @default(cuid())
+  orgId     String             @unique
+  org       Org                @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  plan      BillingPlan        @default(FREE)
+  status    SubscriptionStatus @default(ACTIVE)
+  seats     Int                @default(1)
+  limits    Json?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
-model AlertRule {
-  id              String       @id @default(cuid())
-  orgId           String
-  org             Org          @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  metric          String
-  threshold       Float
-  cooldownMinutes Int          @default(60)
-  recipients      String[]     @default([])
-  channel         AlertChannel
-  isEnabled       Boolean      @default(true)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  alertEvents     AlertEvent[]
-
-  @@index([orgId, metric, isEnabled])
-}
-
-model AlertEvent {
-  id             String           @id @default(cuid())
-  orgId          String
-  org            Org              @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  ruleId         String
-  rule           AlertRule        @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  anomalyType    String
-  dedupKey       String
-  title          String
-  body           String
-  metadata       Json?
-  status         AlertEventStatus
-  suppressReason String?
-  sentAt         DateTime?
-  createdAt      DateTime         @default(now())
-
-  deliveryAttempts AlertDeliveryAttempt[]
-  inAppNotifications InAppNotification[]
-
-  @@index([orgId, dedupKey, createdAt])
-  @@index([ruleId, dedupKey, sentAt])
-}
-
-model AlertDeliveryAttempt {
-  id           String         @id @default(cuid())
-  alertEventId String
-  alertEvent   AlertEvent     @relation(fields: [alertEventId], references: [id], onDelete: Cascade)
-  channel      AlertChannel
-  recipient    String
-  status       DeliveryStatus
-  providerId   String?
-  errorMessage String?
-  metadata     Json?
-  attemptedAt  DateTime       @default(now())
-
-  @@index([alertEventId, attemptedAt])
-  @@index([channel, attemptedAt])
-}
-
-model InAppNotification {
-  id          String   @id @default(cuid())
-  orgId       String
-  org         Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  alertEventId String?
-  alertEvent  AlertEvent? @relation(fields: [alertEventId], references: [id], onDelete: SetNull)
-  recipient   String
-  title       String
-  body        String
-  metadata    Json?
-  readAt      DateTime?
-  createdAt   DateTime @default(now())
-
-  @@index([orgId, recipient, createdAt])
-  @@index([alertEventId])
+  @@index([plan])
+  @@index([status])
 }
 
 model AuditLog {

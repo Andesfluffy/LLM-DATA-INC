@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { ensureUserAndOrg } from "@/lib/userOrg";
+import { blockedEntitlementResponse, resolveOrgEntitlements } from "@/lib/entitlements";
 import { z } from "zod";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -9,7 +10,11 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, context: RouteContext) {
   const userAuth = await getUserFromRequest(req);
   if (!userAuth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { user: dbUser } = await ensureUserAndOrg(userAuth);
+  const { user: dbUser, org } = await ensureUserAndOrg(userAuth);
+  const entitlements = await resolveOrgEntitlements(org.id);
+  if (!entitlements.features.weeklyReports) {
+    return NextResponse.json(blockedEntitlementResponse("Dashboard widgets", entitlements, "pro"), { status: 403 });
+  }
   const { id } = await context.params;
 
   const dashboard = await prisma.dashboard.findFirst({ where: { id, userId: dbUser.id } });
@@ -49,7 +54,11 @@ export async function POST(req: NextRequest, context: RouteContext) {
 export async function DELETE(req: NextRequest, context: RouteContext) {
   const userAuth = await getUserFromRequest(req);
   if (!userAuth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const { user: dbUser } = await ensureUserAndOrg(userAuth);
+  const { user: dbUser, org } = await ensureUserAndOrg(userAuth);
+  const entitlements = await resolveOrgEntitlements(org.id);
+  if (!entitlements.features.weeklyReports) {
+    return NextResponse.json(blockedEntitlementResponse("Dashboard widgets", entitlements, "pro"), { status: 403 });
+  }
   const { id } = await context.params;
 
   const dashboard = await prisma.dashboard.findFirst({ where: { id, userId: dbUser.id } });
