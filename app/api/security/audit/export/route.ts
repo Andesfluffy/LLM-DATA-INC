@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const rows = await prisma.auditLog.findMany({ where: { orgId }, orderBy: { createdAt: "desc" }, take: 5000 });
   const header = "timestamp,action,userId,targetType,targetId,question,sql,rowCount,durationMs\n";
   const body = rows
-    .map((r) => [r.createdAt.toISOString(), r.action, r.userId || "", r.targetType || "", r.targetId || "", JSON.stringify(r.question || ""), JSON.stringify(r.sql || ""), r.rowCount ?? "", r.durationMs ?? ""].join(","))
+    .map((r: typeof rows[number]) => [r.createdAt.toISOString(), r.action, r.userId || "", r.targetType || "", r.targetId || "", JSON.stringify(r.question || ""), JSON.stringify(r.sql || ""), r.rowCount ?? "", r.durationMs ?? ""].join(","))
     .join("\n");
 
   return new NextResponse(`${header}${body}\n`, {

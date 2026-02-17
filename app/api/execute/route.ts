@@ -6,6 +6,7 @@ import { getGuardrails } from "@/lib/connectors/guards";
 import { assertIpAllowlisted, getRequestIp, requireOrgPermission } from "@/lib/rbac";
 import { logAuditEvent } from "@/lib/auditLog";
 import "@/lib/connectors/init";
+import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {

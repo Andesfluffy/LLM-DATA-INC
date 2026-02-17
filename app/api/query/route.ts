@@ -10,6 +10,7 @@ import { getGuardrails } from "@/lib/connectors/guards";
 import { getConnector } from "@/lib/connectors/registry";
 import { findAccessibleDataSource } from "@/lib/userOrg";
 import { assertIpAllowlisted, getRequestIp, requireOrgPermission } from "@/lib/rbac";
+import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { logAuditEvent } from "@/lib/auditLog";
 import { nlToSql } from "@/src/server/generateSql";
 import "@/lib/connectors/init";

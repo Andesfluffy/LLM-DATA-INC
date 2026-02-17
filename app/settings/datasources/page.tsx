@@ -78,6 +78,14 @@ export default function DataSourcesSettingsPage() {
   const [activeDatasourceId, setActiveDatasourceId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [entitlements, setEntitlements] = useState<EntitlementState | null>(null);
+  const [integrationPlatform, setIntegrationPlatform] = useState<IntegrationPlatform>("stripe");
+  const [integrationMode, setIntegrationMode] = useState<IntegrationMode>("api_key");
+  const [integrationApiKey, setIntegrationApiKey] = useState("");
+  const [integrationAccessToken, setIntegrationAccessToken] = useState("");
+  const [integrationRefreshToken, setIntegrationRefreshToken] = useState("");
+  const [integrationExpiresAt, setIntegrationExpiresAt] = useState("");
+  const [integrationBusy, setIntegrationBusy] = useState(false);
+  const [integrationMsg, setIntegrationMsg] = useState<string | null>(null);
 
   useEffect(() => {
     try {

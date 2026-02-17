@@ -1,6 +1,7 @@
 import type { OrgMonitorSchedule } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getConnector } from "@/lib/connectors/registry";
+import { triggerAlertForAnomaly } from "@/lib/alerts/service";
 import "@/lib/connectors/init";
 
 type KpiSummary = {
@@ -74,6 +75,7 @@ function selectCandidateTable(schemaText: string): {
 
   for (const line of lines) {
     const [name] = line.split(/\s+/);
+    if (!name) continue;
     const parts = name.split(".");
     if (parts.length < 2) continue;
     const column = parts.pop() as string;
@@ -251,7 +253,7 @@ export async function runMonitorForDataSource(params: {
   const client = await factory.createClient(ds);
 
   try {
-    const schema = await client.getSchema(`${ds.id}:${Date.now()}`);
+    const schema = await client.getSchema({ cacheKey: `${ds.id}:${Date.now()}` });
     const candidate = selectCandidateTable(schema);
 
     if (!candidate) {
@@ -339,6 +341,32 @@ export async function runMonitorForDataSource(params: {
           changeRatio: f.changeRatio,
         })),
       });
+
+      // Trigger alert rules for each finding
+      const anomalyTypeMap: Record<string, "revenue_drop" | "expense_spike" | "refund_anomaly"> = {
+        revenue_drop: "revenue_drop",
+        expense_spike: "expense_spike",
+        refund_spike: "refund_anomaly",
+        margin_compression: "revenue_drop",
+      };
+
+      for (const finding of findings) {
+        const anomalyType = anomalyTypeMap[finding.kind];
+        if (!anomalyType || finding.currentValue === undefined) continue;
+        try {
+          await triggerAlertForAnomaly({
+            orgId: params.orgId,
+            metric: finding.kind,
+            observedValue: Math.abs(finding.changeRatio ?? 0) * 100,
+            anomalyType,
+            dedupKey: `${run.id}:${finding.kind}`,
+            metadata: { runId: run.id, currentValue: finding.currentValue, previousValue: finding.previousValue },
+            windowLabel: `${isoDate(windows.currentStart)} to ${isoDate(windows.currentEnd)}`,
+          });
+        } catch {
+          // Alert delivery failure should not break the monitoring run
+        }
+      }
     }
 
     await prisma.monitorRun.update({

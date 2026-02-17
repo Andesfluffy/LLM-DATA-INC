@@ -70,11 +70,11 @@ export async function resolveOrgEntitlements(orgId: string): Promise<OrgEntitlem
   if (!subscriptionClient?.upsert) {
     return {
       orgId,
-      plan: "pro",
+      plan: "free",
       status: "active",
       seats: 1,
-      limits: DEFAULT_LIMITS.pro,
-      features: planFeatures("pro"),
+      limits: DEFAULT_LIMITS.free,
+      features: planFeatures("free"),
     };
   }
 

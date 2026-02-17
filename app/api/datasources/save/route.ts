@@ -7,6 +7,7 @@ import "@/lib/connectors/init";
 import { requireOrgPermission } from "@/lib/rbac";
 import { logAuditEvent } from "@/lib/auditLog";
 import { z } from "zod";
+import { resolveOrgEntitlements, blockedEntitlementResponse } from "@/lib/entitlements";
 
 export async function POST(req: NextRequest) {
   const userAuth = await getUserFromRequest(req);
@@ -100,6 +101,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  const entitlements = await resolveOrgEntitlements(org.id);
   const maxSources = typeof entitlements.limits.maxSources === "number" ? entitlements.limits.maxSources : null;
   const countFn = (prisma.dataSource as any).count;
   if (!existing && maxSources && typeof countFn === "function") {

@@ -32,8 +32,8 @@ export async function requireOrgPermission(authUser: Exclude<AuthUser, null>, pe
     where: { orgId_userId: { orgId: org.id, userId: user.id } },
   });
 
-  const role = membership?.role ?? "viewer";
-  if (!PERMISSIONS[role].has(permission)) return null;
+  const role = (membership?.role ?? "viewer") as OrgRole;
+  if (!PERMISSIONS[role]?.has(permission)) return null;
 
   return { user, org, role };
 }
@@ -42,7 +42,7 @@ export async function assertIpAllowlisted(orgId: string, ip: string | null): Pro
   const entries = await prisma.ipAllowlistEntry.findMany({ where: { orgId, enabled: true } });
   if (!entries.length) return true;
   if (!ip) return false;
-  return entries.some((entry) => entry.cidr === ip || entry.cidr === `${ip}/32`);
+  return entries.some((entry: typeof entries[number]) => entry.cidr === ip || entry.cidr === `${ip}/32`);
 }
 
 export function getRequestIp(headers: Headers): string | null {

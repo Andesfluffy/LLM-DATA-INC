@@ -117,7 +117,7 @@ export async function generateAndStoreBusinessMetricSnapshot(input: GenerateMetr
 
   try {
     const allowedTables = await client.getAllowedTables();
-    const schema = await client.getSchema(`${ds.id}:metrics`);
+    const schema = await client.getSchema({ cacheKey: `${ds.id}:metrics` });
     const schemaMap = parseSchema(schema);
 
     const ordersTable = pickFirstMatch(["orders", "sales", "transactions", "invoices"], allowedTables);

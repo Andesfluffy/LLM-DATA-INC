@@ -223,7 +223,7 @@ class CsvClient implements ConnectorClient {
     return ddl
       .split("\n")
       .filter(Boolean)
-      .filter((line) => allowed.has(line.slice(0, line.lastIndexOf(".")).toLowerCase()))
+      .filter((line: string) => allowed.has(line.slice(0, line.lastIndexOf(".")).toLowerCase()))
       .join("\n");
   }
 

@@ -7,6 +7,7 @@ import { useFirebaseAuth, FirebaseAuthProvider } from "@/src/hooks/useFirebaseAu
 
 import AuthNav from "@/components/auth-nav";
 import NavLink from "@/components/nav-link";
+import NotificationBell from "@/components/notification-bell";
 
 type AppShellProps = {
   children: ReactNode;
@@ -60,11 +61,10 @@ function AppShellInner({ children }: AppShellProps) {
             <NavLink href="/" exact>
               Home
             </NavLink>
-            <NavLink href="/history">History</NavLink>
+            <NavLink href="/snapshot">Snapshot</NavLink>
+            <NavLink href="/monitoring">Monitoring</NavLink>
             <NavLink href="/reports">Reports</NavLink>
-            <NavLink href="/settings/glossary" exact={false}>
-              Glossary
-            </NavLink>
+            <NavLink href="/history">History</NavLink>
             <NavLink href="/settings/datasources" exact={false}>
               Settings
             </NavLink>
@@ -93,10 +93,16 @@ function AppShellInner({ children }: AppShellProps) {
                   Home
                 </Link>
                 <Link
-                  href="/history"
+                  href="/snapshot"
                   className="block rounded-lg px-3 py-2.5 text-sm text-grape-300 transition hover:bg-white/[0.04] hover:text-white"
                 >
-                  History
+                  Snapshot
+                </Link>
+                <Link
+                  href="/monitoring"
+                  className="block rounded-lg px-3 py-2.5 text-sm text-grape-300 transition hover:bg-white/[0.04] hover:text-white"
+                >
+                  Monitoring
                 </Link>
                 <Link
                   href="/reports"
@@ -105,10 +111,10 @@ function AppShellInner({ children }: AppShellProps) {
                   Reports
                 </Link>
                 <Link
-                  href="/settings/glossary"
+                  href="/history"
                   className="block rounded-lg px-3 py-2.5 text-sm text-grape-300 transition hover:bg-white/[0.04] hover:text-white"
                 >
-                  Glossary
+                  History
                 </Link>
                 <Link
                   href="/settings/datasources"
@@ -119,6 +125,7 @@ function AppShellInner({ children }: AppShellProps) {
               </div>
             </details>
 
+            <NotificationBell />
             <AuthNav />
           </div>
         </div>
@@ -174,10 +181,18 @@ function AppShellInner({ children }: AppShellProps) {
                 </li>
                 <li>
                   <Link
-                    href="/history"
+                    href="/snapshot"
                     className="text-sm text-grape-400 transition hover:text-white"
                   >
-                    History
+                    Business Snapshot
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/monitoring"
+                    className="text-sm text-grape-400 transition hover:text-white"
+                  >
+                    Monitoring
                   </Link>
                 </li>
                 <li>
@@ -194,14 +209,6 @@ function AppShellInner({ children }: AppShellProps) {
                     className="text-sm text-grape-400 transition hover:text-white"
                   >
                     Data Sources
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/settings/glossary"
-                    className="text-sm text-grape-400 transition hover:text-white"
-                  >
-                    Glossary
                   </Link>
                 </li>
               </ul>

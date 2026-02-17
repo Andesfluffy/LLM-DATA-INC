@@ -21,6 +21,7 @@ export type DataSourceSummary = {
       lastSyncAttemptAt?: string;
     };
   } | null>;
+  scopedTables?: string[];
 };
 
 async function getIdToken(): Promise<string | undefined> {

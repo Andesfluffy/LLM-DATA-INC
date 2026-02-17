@@ -7,6 +7,7 @@ import { logAuditEvent } from "@/lib/auditLog";
 import { getConnector } from "@/lib/connectors/registry";
 import { getGuardrails } from "@/lib/connectors/guards";
 import "@/lib/connectors/init";
+import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { z } from "zod";
 
 export async function POST(req: NextRequest) {

@@ -360,14 +360,7 @@ export default function HomePage() {
                 </div>
               )}
 
-              <ConnectDatabaseModal
-                open={showConnectModal}
-                onClose={() => setShowConnectModal(false)}
-                onConnected={() => {
-                  syncFromLocalStorage();
-                  toast.success("Data source connected!");
-                }}
-              />
+{/* Modal moved to root level */}
 
               {/* Input mode toggle */}
               {hasDatasource && (
@@ -558,6 +551,16 @@ export default function HomePage() {
               </section>
             </div>
           )}
+
+      <ConnectDatabaseModal
+        open={showConnectModal}
+        onClose={() => setShowConnectModal(false)}
+        onConnected={() => {
+          setShowConnectModal(false);
+          syncFromLocalStorage();
+          toast.success("Data source connected!");
+        }}
+      />
       </>
   );
 }
