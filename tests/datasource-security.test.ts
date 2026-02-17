@@ -212,6 +212,7 @@ type DataSourceRecord = {
 type Store = {
   users: Map<string, any>;
   orgs: Map<string, any>;
+  monitorSchedules: Map<string, any>;
   dataSources: Map<string, DataSourceRecord>;
   auditLogs: any[];
   memberships: MembershipMap;
@@ -220,6 +221,7 @@ type Store = {
 type PrismaStub = {
   org: { upsert(args: any): Promise<any> };
   user: { upsert(args: any): Promise<any> };
+  orgMonitorSchedule: { upsert(args: any): Promise<any> };
   dataSource: {
     findFirst(args: any): Promise<DataSourceRecord | null>;
     create(args: any): Promise<DataSourceRecord>;
@@ -234,6 +236,7 @@ function createMockContext(): { store: Store; prisma: PrismaStub } {
   const store: Store = {
     users: new Map(),
     orgs: new Map(),
+    monitorSchedules: new Map(),
     dataSources: new Map(),
     auditLogs: [],
     memberships: new Map(),
@@ -283,6 +286,19 @@ function createMockContext(): { store: Store; prisma: PrismaStub } {
           const record = { ...create };
           store.users.set(where.id, record);
           ensureMembership(record.orgId, where.id);
+          return record;
+        },
+      },
+      orgMonitorSchedule: {
+        async upsert({ where, create, update }: any) {
+          const existing = store.monitorSchedules.get(where.orgId);
+          if (existing) {
+            const next = { ...existing, ...cleanObject(update) };
+            store.monitorSchedules.set(where.orgId, next);
+            return next;
+          }
+          const record = { id: `sched_${where.orgId}`, ...create };
+          store.monitorSchedules.set(where.orgId, record);
           return record;
         },
       },
