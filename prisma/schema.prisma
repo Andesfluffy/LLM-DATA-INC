@@ -138,6 +138,9 @@ model Org {
   monitorRuns     MonitorRun[]
   kpiSnapshots    KpiSnapshot[]
   auditLogs   AuditLog[]
+  alertRules  AlertRule[]
+  alertEvents AlertEvent[]
+  inAppNotifications InAppNotification[]
   glossaryTerms GlossaryTerm[]
   savedQueries  SavedQuery[]
   dashboards    Dashboard[]
@@ -147,76 +150,94 @@ model Org {
   updatedAt   DateTime     @updatedAt
 }
 
-model OrgMonitorSchedule {
-  id                    String   @id @default(cuid())
-  orgId                 String   @unique
-  org                   Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  weeklyReportDay       Int      @default(1)
-  weeklyReportHour      Int      @default(9)
-  weeklyReportMinute    Int      @default(0)
-  timezone              String   @default("UTC")
-  revenueDropThreshold  Float    @default(0.15)
-  expenseSpikeThreshold Float    @default(0.2)
-  refundSpikeThreshold  Float    @default(0.2)
-  marginDropThreshold   Float    @default(0.1)
-  enabled               Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+enum AlertChannel {
+  EMAIL
+  IN_APP
 }
 
-model MonitorRun {
-  id            String   @id @default(cuid())
+enum AlertEventStatus {
+  SENT
+  SUPPRESSED_COOLDOWN
+  DELIVERY_FAILED
+}
+
+enum DeliveryStatus {
+  SENT
+  FAILED
+}
+
+model AlertRule {
+  id              String       @id @default(cuid())
+  orgId           String
+  org             Org          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  metric          String
+  threshold       Float
+  cooldownMinutes Int          @default(60)
+  recipients      String[]     @default([])
+  channel         AlertChannel
+  isEnabled       Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  alertEvents     AlertEvent[]
+
+  @@index([orgId, metric, isEnabled])
+}
+
+model AlertEvent {
+  id             String           @id @default(cuid())
   orgId          String
-  org            Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  dataSourceId   String
-  dataSource     DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
-  status         String
-  trigger        String   @default("cron")
-  startedAt      DateTime @default(now())
-  completedAt    DateTime?
-  error          String?
-  retryCount     Int      @default(0)
-  schemaRefreshed Boolean @default(false)
-  windowStart    DateTime
-  windowEnd      DateTime
-  findings       MonitorFinding[]
-  snapshots      KpiSnapshot[]
+  org            Org              @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  ruleId         String
+  rule           AlertRule        @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  anomalyType    String
+  dedupKey       String
+  title          String
+  body           String
+  metadata       Json?
+  status         AlertEventStatus
+  suppressReason String?
+  sentAt         DateTime?
+  createdAt      DateTime         @default(now())
 
-  @@index([orgId, startedAt])
-  @@index([dataSourceId, startedAt])
+  deliveryAttempts AlertDeliveryAttempt[]
+  inAppNotifications InAppNotification[]
+
+  @@index([orgId, dedupKey, createdAt])
+  @@index([ruleId, dedupKey, sentAt])
 }
 
-model MonitorFinding {
-  id            String   @id @default(cuid())
-  runId         String
-  run           MonitorRun @relation(fields: [runId], references: [id], onDelete: Cascade)
-  kind          String
-  severity      String
-  title         String
-  description   String?
-  currentValue  Float?
-  previousValue Float?
-  changeRatio   Float?
-  createdAt     DateTime @default(now())
+model AlertDeliveryAttempt {
+  id           String         @id @default(cuid())
+  alertEventId String
+  alertEvent   AlertEvent     @relation(fields: [alertEventId], references: [id], onDelete: Cascade)
+  channel      AlertChannel
+  recipient    String
+  status       DeliveryStatus
+  providerId   String?
+  errorMessage String?
+  metadata     Json?
+  attemptedAt  DateTime       @default(now())
 
-  @@index([runId])
-  @@index([kind])
+  @@index([alertEventId, attemptedAt])
+  @@index([channel, attemptedAt])
 }
 
-model KpiSnapshot {
-  id            String   @id @default(cuid())
-  orgId         String
-  org           Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  dataSourceId  String
-  dataSource    DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
-  runId         String?
-  run           MonitorRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
-  windowStart   DateTime
-  windowEnd     DateTime
-  metrics       Json
-  createdAt     DateTime @default(now())
+model InAppNotification {
+  id          String   @id @default(cuid())
+  orgId       String
+  org         Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  alertEventId String?
+  alertEvent  AlertEvent? @relation(fields: [alertEventId], references: [id], onDelete: SetNull)
+  recipient   String
+  title       String
+  body        String
+  metadata    Json?
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
 
-  @@index([orgId, dataSourceId, windowStart])
+  @@index([orgId, recipient, createdAt])
+  @@index([alertEventId])
 }
 
 model AuditLog {
