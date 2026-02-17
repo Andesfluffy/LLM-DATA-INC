@@ -94,10 +94,22 @@ model DataSource {
   metadata  Json?
 
     queryAudits QueryAudit[]
+    tableScopes DataSourceTableScope[]
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
   @@index([orgId])
+}
+
+model DataSourceTableScope {
+  id           String     @id @default(cuid())
+  dataSourceId String
+  dataSource   DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  tableName    String
+  createdAt    DateTime   @default(now())
+
+  @@unique([dataSourceId, tableName])
+  @@index([dataSourceId])
 }
 
 model QueryAudit {
@@ -122,6 +134,9 @@ model Org {
   name        String
   users       User[]
   datasources DataSource[]
+  monitorSchedule OrgMonitorSchedule?
+  monitorRuns     MonitorRun[]
+  kpiSnapshots    KpiSnapshot[]
   auditLogs   AuditLog[]
   alertRules  AlertRule[]
   alertEvents AlertEvent[]
@@ -129,6 +144,8 @@ model Org {
   glossaryTerms GlossaryTerm[]
   savedQueries  SavedQuery[]
   dashboards    Dashboard[]
+  weeklyBusinessReports WeeklyBusinessReport[]
+  reportDeliveryLogs    ReportDeliveryLog[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -303,4 +320,56 @@ model DashboardWidget {
   createdAt    DateTime   @default(now())
 
   @@index([dashboardId])
+}
+
+model WeeklyBusinessReport {
+  id              String          @id @default(cuid())
+  orgId           String
+  org             Org             @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  periodStart     DateTime
+  periodEnd       DateTime
+  status          String          @default("generated")
+  healthScore     Int?
+  summary         String?
+  markdownContent String
+  jsonContent     Json
+  sections        ReportSection[]
+  deliveries      ReportDeliveryLog[]
+  generatedAt     DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([orgId, periodStart, periodEnd])
+  @@unique([orgId, periodStart, periodEnd])
+}
+
+model ReportSection {
+  id         String               @id @default(cuid())
+  reportId   String
+  report     WeeklyBusinessReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  key        String
+  title      String
+  markdown   String
+  jsonData   Json
+  sortOrder  Int                  @default(0)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@index([reportId, sortOrder])
+}
+
+model ReportDeliveryLog {
+  id         String               @id @default(cuid())
+  orgId      String
+  org        Org                  @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  reportId   String
+  report     WeeklyBusinessReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  channel    String               @default("in_app")
+  status     String               @default("delivered")
+  deliveredTo String?
+  metadata   Json?
+  createdAt  DateTime             @default(now())
+
+  @@index([orgId, createdAt])
+  @@index([reportId])
 }
