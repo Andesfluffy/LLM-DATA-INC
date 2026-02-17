@@ -10,6 +10,7 @@ export type DataSourceSummary = {
   hasPassword?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  scopedTables?: string[];
 };
 
 async function getIdToken(): Promise<string | undefined> {

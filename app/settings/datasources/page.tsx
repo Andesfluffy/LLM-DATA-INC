@@ -62,6 +62,8 @@ export default function DataSourcesSettingsPage() {
   const [uploadingCsv, setUploadingCsv] = useState(false);
   const [schemaPreview, setSchemaPreview] = useState<ParsedTable[] | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [discoveredTables, setDiscoveredTables] = useState<string[]>([]);
+  const [monitoredTables, setMonitoredTables] = useState<string[]>([]);
   const [dataSources, setDataSources] = useState<DataSourceSummary[]>([]);
   const [activeDatasourceId, setActiveDatasourceId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -89,6 +91,7 @@ export default function DataSourcesSettingsPage() {
     });
     setActiveDatasourceId(existing.id);
     localStorage.setItem("datasourceId", existing.id);
+    setMonitoredTables(existing.scopedTables || []);
     if (existing.orgId) {
       localStorage.setItem("orgId", existing.orgId);
       setOrgId(existing.orgId);
@@ -132,6 +135,15 @@ export default function DataSourcesSettingsPage() {
     setForm((prev) => ({ ...prev, [key]: val }));
   }, []);
 
+
+  const toggleMonitoredTable = useCallback((tableName: string) => {
+    setMonitoredTables((prev) => (
+      prev.includes(tableName)
+        ? prev.filter((name) => name !== tableName)
+        : [...prev, tableName]
+    ));
+  }, []);
+
   const handleSpreadsheetSelected = useCallback(async (file: File | null) => {
     setCsvFile(file);
     setSheetOptions([]);
@@ -157,6 +169,36 @@ export default function DataSourcesSettingsPage() {
     return await getAuthHeaders();
   }, []);
 
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadScopedSchema() {
+      if (!orgId || !activeDatasourceId) return;
+      try {
+        const res = await fetch(`/api/datasources/schema-info?orgId=${encodeURIComponent(orgId)}&datasourceId=${encodeURIComponent(activeDatasourceId)}`, {
+          headers: await authHeaders(),
+        });
+        if (!res.ok) return;
+        const payload = await res.json();
+        if (cancelled) return;
+        const tables: ParsedTable[] = payload.tables || [];
+        setSchemaPreview(tables);
+        const discovered = tables.map((t) => t.name);
+        setDiscoveredTables(discovered);
+        const scoped = Array.isArray(payload.scopedTables) ? payload.scopedTables : [];
+        setMonitoredTables(scoped.length ? scoped : discovered);
+      } catch {
+        // ignore schema load failures here
+      }
+    }
+
+    loadScopedSchema();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDatasourceId, authHeaders, orgId]);
+
   const isSpreadsheet = form.type === "csv";
   const supportsSaveConnection = form.type !== "csv";
   const supportsTest = form.type !== "csv";
@@ -174,6 +216,8 @@ export default function DataSourcesSettingsPage() {
       return null;
     }
 
+    const selected = monitoredTables.length ? monitoredTables : discoveredTables;
+
     return {
       type: form.type,
       name: form.name,
@@ -182,8 +226,9 @@ export default function DataSourcesSettingsPage() {
       database: form.database,
       user: form.user,
       ...(form.password ? { password: form.password } : {}),
+      monitoredTables: selected,
     };
-  }, [form]);
+  }, [discoveredTables, form, monitoredTables]);
 
   const buildTestPayload = useCallback(() => {
     if (form.type === "sqlite") {
@@ -221,7 +266,11 @@ export default function DataSourcesSettingsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setSchemaPreview(data.tables || []);
+        const tables: ParsedTable[] = data.tables || [];
+        setSchemaPreview(tables);
+        const discovered = tables.map((t) => t.name);
+        setDiscoveredTables(discovered);
+        setMonitoredTables((prev) => (prev.length ? prev.filter((name) => discovered.includes(name)) : discovered));
       }
     } catch {
       // Non-critical — just don't show the preview
@@ -307,6 +356,9 @@ export default function DataSourcesSettingsPage() {
       } else {
         setSaveOk(true);
         setSaveMsg("Saved");
+        if (Array.isArray(responsePayload?.monitoredTables)) {
+          setMonitoredTables(responsePayload.monitoredTables);
+        }
         if (responsePayload?.orgId) {
           localStorage.setItem("orgId", responsePayload.orgId);
           setOrgId(responsePayload.orgId);
@@ -712,7 +764,25 @@ export default function DataSourcesSettingsPage() {
                       Scanning your database...
                     </div>
                   ) : schemaPreview && schemaPreview.length > 0 ? (
-                    <SchemaPreview tables={schemaPreview} />
+                    <div className="space-y-4">
+                      <SchemaPreview tables={schemaPreview} />
+                      <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-3">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-grape-300">Monitored Tables</p>
+                        <p className="mb-3 text-xs text-grape-400">Select the tables Data Vista can use for queries, monitoring, and KPI calculations.</p>
+                        <div className="max-h-48 space-y-1 overflow-auto pr-1">
+                          {discoveredTables.map((tableName) => (
+                            <label key={tableName} className="flex items-center gap-2 text-xs text-grape-200">
+                              <input
+                                type="checkbox"
+                                checked={monitoredTables.includes(tableName)}
+                                onChange={() => toggleMonitoredTable(tableName)}
+                              />
+                              <span>{tableName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <p className="text-xs text-grape-400 text-center py-4">No tables found in this database.</p>
                   )}
