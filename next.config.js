@@ -2,7 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   // Exclude native Node modules from Webpack bundling on Vercel
-  serverExternalPackages: ["better-sqlite3", "pg", "mysql2"],
+  serverExternalPackages: ["better-sqlite3", "pg", "mysql2", "sql.js"],
   experimental: {
     serverActions: {
       bodySizeLimit: "2mb"

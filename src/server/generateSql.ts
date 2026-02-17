@@ -50,6 +50,8 @@ export async function nlToSql({ question, schema, orgContext, dialect, conversat
       { role: "user", content: userContent },
     ],
   });
-  const sql = (resp.choices?.[0]?.message?.content || "").trim();
+  let sql = (resp.choices?.[0]?.message?.content || "").trim();
+  // Strip markdown code fences that GPT sometimes wraps around SQL
+  sql = sql.replace(/^```(?:sql)?\s*\n?/i, "").replace(/\n?```\s*$/, "").trim();
   return sql;
 }
