@@ -123,11 +123,104 @@ model Org {
   users       User[]
   datasources DataSource[]
   auditLogs   AuditLog[]
+  alertRules  AlertRule[]
+  alertEvents AlertEvent[]
+  inAppNotifications InAppNotification[]
   glossaryTerms GlossaryTerm[]
   savedQueries  SavedQuery[]
   dashboards    Dashboard[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+}
+
+enum AlertChannel {
+  EMAIL
+  IN_APP
+}
+
+enum AlertEventStatus {
+  SENT
+  SUPPRESSED_COOLDOWN
+  DELIVERY_FAILED
+}
+
+enum DeliveryStatus {
+  SENT
+  FAILED
+}
+
+model AlertRule {
+  id              String       @id @default(cuid())
+  orgId           String
+  org             Org          @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  metric          String
+  threshold       Float
+  cooldownMinutes Int          @default(60)
+  recipients      String[]     @default([])
+  channel         AlertChannel
+  isEnabled       Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  alertEvents     AlertEvent[]
+
+  @@index([orgId, metric, isEnabled])
+}
+
+model AlertEvent {
+  id             String           @id @default(cuid())
+  orgId          String
+  org            Org              @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  ruleId         String
+  rule           AlertRule        @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  anomalyType    String
+  dedupKey       String
+  title          String
+  body           String
+  metadata       Json?
+  status         AlertEventStatus
+  suppressReason String?
+  sentAt         DateTime?
+  createdAt      DateTime         @default(now())
+
+  deliveryAttempts AlertDeliveryAttempt[]
+  inAppNotifications InAppNotification[]
+
+  @@index([orgId, dedupKey, createdAt])
+  @@index([ruleId, dedupKey, sentAt])
+}
+
+model AlertDeliveryAttempt {
+  id           String         @id @default(cuid())
+  alertEventId String
+  alertEvent   AlertEvent     @relation(fields: [alertEventId], references: [id], onDelete: Cascade)
+  channel      AlertChannel
+  recipient    String
+  status       DeliveryStatus
+  providerId   String?
+  errorMessage String?
+  metadata     Json?
+  attemptedAt  DateTime       @default(now())
+
+  @@index([alertEventId, attemptedAt])
+  @@index([channel, attemptedAt])
+}
+
+model InAppNotification {
+  id          String   @id @default(cuid())
+  orgId       String
+  org         Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  alertEventId String?
+  alertEvent  AlertEvent? @relation(fields: [alertEventId], references: [id], onDelete: SetNull)
+  recipient   String
+  title       String
+  body        String
+  metadata    Json?
+  readAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([orgId, recipient, createdAt])
+  @@index([alertEventId])
 }
 
 model AuditLog {
