@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquare, Code2, Table2, BarChart3, Download, AlertCircle, Loader2, RotateCcw } from "lucide-react";
+import { MessageSquare, Code2, Table2, BarChart3, Download, AlertCircle, Loader2, RotateCcw, Database } from "lucide-react";
 import OnboardingWizard from "@/src/components/onboarding/OnboardingWizard";
 import { useConversationThread } from "@/src/hooks/useConversationThread";
 import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
@@ -21,6 +21,7 @@ import InsightPanel from "@/src/components/InsightPanel";
 import ResultsChart from "@/src/components/ResultsChart";
 import ResultsTable from "@/src/components/ResultsTable";
 import { toast } from "@/src/components/ui/Toast";
+import ConnectDatabaseModal from "@/src/components/ConnectDatabaseModal";
 import { fetchAccessibleDataSources } from "@/src/lib/datasourceClient";
 
 type QueryResult = {
@@ -57,6 +58,7 @@ export default function HomePage() {
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const { thread, addTurn, clearThread } = useConversationThread();
   const [inputMode, setInputMode] = useState<"text" | "builder">("text");
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   const syncFromLocalStorage = useCallback(() => {
     try {
@@ -126,7 +128,7 @@ export default function HomePage() {
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("storage", onStorage);
     };
-  }, [resolveConnectionIds, syncFromLocalStorage]);
+  }, [user, resolveConnectionIds, syncFromLocalStorage]);
 
   // Check onboarding status
   useEffect(() => {
@@ -160,7 +162,7 @@ export default function HomePage() {
     };
     check();
     return () => { cancelled = true; };
-  }, []);
+  }, [user]);
 
   // Allow re-opening the tutorial from the user menu
   useEffect(() => {
@@ -321,12 +323,39 @@ export default function HomePage() {
                       </div>
                     </div>
               {!hasDatasource && (
-                <EmptyState
-                  title="No data connected yet"
-                  message="Head to Settings to connect your database or upload a spreadsheet (CSV/Excel), then come back here to ask questions."
-                  examples={["What were total sales last month?", "Show me top customers", "Revenue by region"]}
-                />
+                <div className="text-center py-8">
+                  <div className="mx-auto mb-4 h-14 w-14 rounded-full bg-white/[0.04] flex items-center justify-center">
+                    <Database className="h-6 w-6 text-grape-400" />
+                  </div>
+                  <p className="font-semibold text-lg text-white mb-1">No data connected yet</p>
+                  <p className="text-sm text-grape-400 mb-5 max-w-sm mx-auto">
+                    Connect your database or upload a spreadsheet to start asking questions.
+                  </p>
+                  <Button
+                    variant="primary"
+                    onClick={() => setShowConnectModal(true)}
+                  >
+                    <Database className="h-4 w-4" />
+                    Connect a Database
+                  </Button>
+                  <div className="mt-5 flex flex-wrap gap-2 justify-center">
+                    {["What were total sales last month?", "Show me top customers", "Revenue by region"].map((ex) => (
+                      <span key={ex} className="px-2.5 py-1 rounded-full border border-white/[0.06] bg-white/[0.02] text-grape-400 text-xs">
+                        {ex}
+                      </span>
+                    ))}
+                  </div>
+                </div>
               )}
+
+              <ConnectDatabaseModal
+                open={showConnectModal}
+                onClose={() => setShowConnectModal(false)}
+                onConnected={() => {
+                  syncFromLocalStorage();
+                  toast.success("Data source connected!");
+                }}
+              />
 
               {/* Input mode toggle */}
               {hasDatasource && (
