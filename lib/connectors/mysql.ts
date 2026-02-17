@@ -50,10 +50,19 @@ class MysqlClient implements ConnectorClient {
     }
   }
 
-  async getSchema(cacheKey?: string): Promise<string> {
-    const key = cacheKey || `${this.ds.host}:${this.ds.port}:${this.ds.database}`;
+  async getSchema(opts?: { cacheKey?: string; allowedTables?: string[] }): Promise<string> {
+    const key = opts?.cacheKey || `${this.ds.host}:${this.ds.port}:${this.ds.database}`;
     const cached = schemaCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) return cached.ddl;
+    if (cached && cached.expiresAt > Date.now()) {
+      const allowlist = opts?.allowedTables;
+      if (!allowlist) return cached.ddl;
+      const allowed = new Set(allowlist.map((table) => table.toLowerCase()));
+      return cached.ddl
+        .split("\n")
+        .filter(Boolean)
+        .filter((line) => allowed.has(line.slice(0, line.lastIndexOf(".")).toLowerCase()))
+        .join("\n");
+    }
 
     const conn = await this.getConnection();
     const [rows] = await conn.query(`
@@ -68,17 +77,28 @@ class MysqlClient implements ConnectorClient {
     );
     const ddl = lines.join("\n");
     schemaCache.set(key, { ddl, expiresAt: Date.now() + SCHEMA_TTL });
-    return ddl;
+
+    const allowlist = opts?.allowedTables;
+    if (!allowlist) return ddl;
+    const allowed = new Set(allowlist.map((table) => table.toLowerCase()));
+    return ddl
+      .split("\n")
+      .filter(Boolean)
+      .filter((line) => allowed.has(line.slice(0, line.lastIndexOf(".")).toLowerCase()))
+      .join("\n");
   }
 
-  async getAllowedTables(): Promise<string[]> {
+  async getAllowedTables(allowedTables?: string[]): Promise<string[]> {
     const conn = await this.getConnection();
     const [rows] = await conn.query(`
       SELECT TABLE_NAME AS \`table\`
       FROM information_schema.TABLES
       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'BASE TABLE'
     `);
-    return (rows as any[]).map((r) => r.table);
+    const discovered = (rows as any[]).map((r) => r.table);
+    if (!allowedTables) return discovered;
+    const allowed = new Set(allowedTables.map((table) => table.toLowerCase()));
+    return discovered.filter((table) => allowed.has(String(table).toLowerCase()));
   }
 
   async executeQuery(

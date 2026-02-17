@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
         { org: { users: { some: { id: user.id } } } },
       ],
     },
+    include: { tableScopes: { select: { tableName: true }, orderBy: { tableName: "asc" } } },
     orderBy: { createdAt: "desc" },
   });
 
