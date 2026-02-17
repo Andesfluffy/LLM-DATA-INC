@@ -94,6 +94,8 @@ model DataSource {
   metadata  Json?
 
     queryAudits QueryAudit[]
+    metricSnapshots BusinessMetricSnapshot[]
+    healthScores BusinessHealthScore[]
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
@@ -126,6 +128,8 @@ model Org {
   glossaryTerms GlossaryTerm[]
   savedQueries  SavedQuery[]
   dashboards    Dashboard[]
+  metricSnapshots BusinessMetricSnapshot[]
+  healthScores    BusinessHealthScore[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -210,4 +214,42 @@ model DashboardWidget {
   createdAt    DateTime   @default(now())
 
   @@index([dashboardId])
+}
+
+model BusinessMetricSnapshot {
+  id                String     @id @default(cuid())
+  orgId             String
+  org               Org        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  datasourceId      String
+  datasource        DataSource @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
+  periodGranularity String
+  periodStart       DateTime
+  periodEnd         DateTime
+  metricKey         String
+  metricValue       Float?
+  confidence        String     @default("low")
+  sourceMissing     Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@unique([orgId, datasourceId, periodGranularity, periodStart, periodEnd, metricKey])
+  @@index([orgId, datasourceId, periodGranularity, periodStart])
+}
+
+model BusinessHealthScore {
+  id                     String     @id @default(cuid())
+  orgId                  String
+  org                    Org        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  datasourceId           String
+  datasource             DataSource @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
+  periodGranularity      String
+  periodStart            DateTime
+  periodEnd              DateTime
+  score                  Float
+  componentContributions Json?
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+
+  @@unique([orgId, datasourceId, periodGranularity, periodStart, periodEnd])
+  @@index([orgId, datasourceId, periodGranularity, periodStart])
 }
