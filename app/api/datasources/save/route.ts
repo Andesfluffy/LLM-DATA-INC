@@ -20,12 +20,13 @@ export async function POST(req: NextRequest) {
     database: z.string().optional(),
     user: z.string().optional(),
     password: z.string().optional(),
+    monitoredTables: z.array(z.string().min(1)).optional(),
   });
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const body = parsed.data;
-  const { name, type } = body;
+  const { name, type, monitoredTables } = body;
 
   if (type === "csv") {
     return NextResponse.json(
@@ -158,5 +159,22 @@ export async function POST(req: NextRequest) {
         },
       });
 
-  return NextResponse.json({ id: ds.id, orgId: ds.orgId, ownerId: ds.ownerId });
+  const normalizedScope = await replaceDatasourceScope(ds.id, monitoredTables ?? previousScope);
+  const previousSorted = [...previousScope].sort((a, b) => a.localeCompare(b));
+  const scopeChanged = JSON.stringify(previousSorted) !== JSON.stringify(normalizedScope);
+
+  if (scopeChanged) {
+    await prisma.auditLog.create({
+      data: {
+        orgId: org.id,
+        userId: dbUser.id,
+        question: `Updated monitored tables for datasource ${ds.name}`,
+        sql: `SCOPE:${JSON.stringify({ datasourceId: ds.id, tables: normalizedScope })}`,
+        durationMs: null,
+        rowCount: null,
+      },
+    });
+  }
+
+  return NextResponse.json({ id: ds.id, orgId: ds.orgId, ownerId: ds.ownerId, monitoredTables: normalizedScope });
 }
