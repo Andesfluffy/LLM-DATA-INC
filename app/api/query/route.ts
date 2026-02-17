@@ -162,9 +162,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ sql, fields: result.fields, rows: result.rows });
   } catch (e: any) {
     const msg = String(e?.message || e);
+    console.error("[query] Error for datasource", datasourceId, ":", msg, e?.stack || "");
     const isTimeout = /statement timeout|canceling statement|max_execution_time/i.test(msg);
     const isConnection = /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|connection refused|connect ECONNREFUSED/i.test(msg);
-    const isSyntax = /syntax error|column .* does not exist|relation .* does not exist|undefined column/i.test(msg);
+    const isSyntax = /syntax error|column .* does not exist|relation .* does not exist|undefined column|no such column|no such table|near ".*?": /i.test(msg);
 
     let friendlyMsg: string;
     if (isTimeout) {
@@ -177,7 +178,11 @@ export async function POST(req: NextRequest) {
       friendlyMsg = "Something went wrong while running your query. Try rephrasing your question, or check your data source settings.";
     }
 
-    return NextResponse.json({ error: friendlyMsg }, { status: isTimeout ? 504 : 500 });
+    const isDev = process.env.NODE_ENV === "development";
+    return NextResponse.json(
+      { error: friendlyMsg, ...(isDev && { debug: msg }) },
+      { status: isTimeout ? 504 : 500 }
+    );
   } finally {
     await client.disconnect();
   }
