@@ -134,12 +134,89 @@ model Org {
   name        String
   users       User[]
   datasources DataSource[]
+  monitorSchedule OrgMonitorSchedule?
+  monitorRuns     MonitorRun[]
+  kpiSnapshots    KpiSnapshot[]
   auditLogs   AuditLog[]
   glossaryTerms GlossaryTerm[]
   savedQueries  SavedQuery[]
   dashboards    Dashboard[]
+  metricSnapshots BusinessMetricSnapshot[]
+  healthScores    BusinessHealthScore[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+}
+
+model OrgMonitorSchedule {
+  id                    String   @id @default(cuid())
+  orgId                 String   @unique
+  org                   Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  weeklyReportDay       Int      @default(1)
+  weeklyReportHour      Int      @default(9)
+  weeklyReportMinute    Int      @default(0)
+  timezone              String   @default("UTC")
+  revenueDropThreshold  Float    @default(0.15)
+  expenseSpikeThreshold Float    @default(0.2)
+  refundSpikeThreshold  Float    @default(0.2)
+  marginDropThreshold   Float    @default(0.1)
+  enabled               Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model MonitorRun {
+  id            String   @id @default(cuid())
+  orgId          String
+  org            Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  dataSourceId   String
+  dataSource     DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  status         String
+  trigger        String   @default("cron")
+  startedAt      DateTime @default(now())
+  completedAt    DateTime?
+  error          String?
+  retryCount     Int      @default(0)
+  schemaRefreshed Boolean @default(false)
+  windowStart    DateTime
+  windowEnd      DateTime
+  findings       MonitorFinding[]
+  snapshots      KpiSnapshot[]
+
+  @@index([orgId, startedAt])
+  @@index([dataSourceId, startedAt])
+}
+
+model MonitorFinding {
+  id            String   @id @default(cuid())
+  runId         String
+  run           MonitorRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  kind          String
+  severity      String
+  title         String
+  description   String?
+  currentValue  Float?
+  previousValue Float?
+  changeRatio   Float?
+  createdAt     DateTime @default(now())
+
+  @@index([runId])
+  @@index([kind])
+}
+
+model KpiSnapshot {
+  id            String   @id @default(cuid())
+  orgId         String
+  org           Org      @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  dataSourceId  String
+  dataSource    DataSource @relation(fields: [dataSourceId], references: [id], onDelete: Cascade)
+  runId         String?
+  run           MonitorRun? @relation(fields: [runId], references: [id], onDelete: SetNull)
+  windowStart   DateTime
+  windowEnd     DateTime
+  metrics       Json
+  createdAt     DateTime @default(now())
+
+  @@index([orgId, dataSourceId, windowStart])
 }
 
 model AuditLog {
@@ -222,4 +299,42 @@ model DashboardWidget {
   createdAt    DateTime   @default(now())
 
   @@index([dashboardId])
+}
+
+model BusinessMetricSnapshot {
+  id                String     @id @default(cuid())
+  orgId             String
+  org               Org        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  datasourceId      String
+  datasource        DataSource @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
+  periodGranularity String
+  periodStart       DateTime
+  periodEnd         DateTime
+  metricKey         String
+  metricValue       Float?
+  confidence        String     @default("low")
+  sourceMissing     Boolean    @default(false)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@unique([orgId, datasourceId, periodGranularity, periodStart, periodEnd, metricKey])
+  @@index([orgId, datasourceId, periodGranularity, periodStart])
+}
+
+model BusinessHealthScore {
+  id                     String     @id @default(cuid())
+  orgId                  String
+  org                    Org        @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  datasourceId           String
+  datasource             DataSource @relation(fields: [datasourceId], references: [id], onDelete: Cascade)
+  periodGranularity      String
+  periodStart            DateTime
+  periodEnd              DateTime
+  score                  Float
+  componentContributions Json?
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+
+  @@unique([orgId, datasourceId, periodGranularity, periodStart, periodEnd])
+  @@index([orgId, datasourceId, periodGranularity, periodStart])
 }
