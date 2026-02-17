@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { ensureUserAndOrg } from "@/lib/userOrg";
 import { cleanupStaleUploadFiles, deleteManagedUploadFile, extractCsvFilePath } from "@/lib/csvStorage";
+import { replaceDatasourceScope } from "@/lib/datasourceScope";
 import { parse } from "csv-parse/sync";
 import { extname, join } from "path";
 import { mkdirSync, writeFileSync } from "fs";
@@ -271,6 +272,8 @@ export async function POST(req: NextRequest) {
           metadata,
         },
       });
+
+  await replaceDatasourceScope(ds.id, [tableName]);
 
   // Best-effort cleanup when replacing an existing filesystem-backed spreadsheet.
   if (previousFilePath && previousFilePath !== metadata.filePath) {

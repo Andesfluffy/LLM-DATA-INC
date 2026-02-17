@@ -60,10 +60,21 @@ class PostgresClient implements ConnectorClient {
     }
   }
 
-  async getSchema(cacheKey?: string): Promise<string> {
-    const key = cacheKey || this.cacheKey;
+  async getSchema(opts?: { cacheKey?: string; allowedTables?: string[] }): Promise<string> {
+    const key = opts?.cacheKey || this.cacheKey;
     const cached = schemaCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) return cached.ddl;
+    if (cached && cached.expiresAt > Date.now()) {
+      const lines = cached.ddl.split("\n").filter(Boolean);
+      const allowlist = opts?.allowedTables;
+      if (!allowlist) return cached.ddl;
+      const allowed = new Set(allowlist.map((table) => table.toLowerCase()));
+      return lines
+        .filter((line) => {
+          const qualified = line.slice(0, line.lastIndexOf("."));
+          return allowed.has(qualified.toLowerCase());
+        })
+        .join("\n");
+    }
 
     await this.ensureConnected();
     const result = await this.client.query(`
@@ -84,10 +95,20 @@ class PostgresClient implements ConnectorClient {
 
     const ddl = lines.join("\n");
     schemaCache.set(key, { ddl, expiresAt: Date.now() + SCHEMA_TTL });
-    return ddl;
+
+    const allowlist = opts?.allowedTables;
+    if (!allowlist) return ddl;
+    const allowed = new Set(allowlist.map((table) => table.toLowerCase()));
+
+    return lines
+      .filter((line) => {
+        const qualified = line.slice(0, line.lastIndexOf("."));
+        return allowed.has(qualified.toLowerCase());
+      })
+      .join("\n");
   }
 
-  async getAllowedTables(): Promise<string[]> {
+  async getAllowedTables(allowedTables?: string[]): Promise<string[]> {
     await this.ensureConnected();
     const result = await this.client.query(`
       SELECT table_schema AS schema, table_name AS table
@@ -95,9 +116,13 @@ class PostgresClient implements ConnectorClient {
       WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
         AND table_type = 'BASE TABLE'
     `);
-    return result.rows.map((r: any) =>
+    const discovered = result.rows.map((r: any) =>
       r.schema === "public" ? r.table : `${r.schema}.${r.table}`
     );
+
+    if (!allowedTables) return discovered;
+    const allowed = new Set(allowedTables.map((table) => table.toLowerCase()));
+    return discovered.filter((table) => allowed.has(String(table).toLowerCase()));
   }
 
   async executeQuery(

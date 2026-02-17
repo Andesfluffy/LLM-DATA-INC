@@ -13,6 +13,7 @@ type FindParams = {
 type PrismaClientLike = {
   org: { upsert(args: any): Promise<Org> };
   user: { upsert(args: any): Promise<User> };
+  orgMonitorSchedule: { upsert(args: any): Promise<any> };
   dataSource: { findFirst(args: any): Promise<DataSource | null> };
 };
 
@@ -50,6 +51,18 @@ export async function ensureUserAndOrg(
       name: authUser.email ? authUser.email.split("@")[0] || null : null,
       email: authUser.email ?? null,
       orgId: org.id,
+    },
+  });
+
+  await client.orgMonitorSchedule.upsert({
+    where: { orgId: org.id },
+    update: {},
+    create: {
+      orgId: org.id,
+      weeklyReportDay: 1,
+      weeklyReportHour: 9,
+      weeklyReportMinute: 0,
+      timezone: "UTC",
     },
   });
 

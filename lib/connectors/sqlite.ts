@@ -37,10 +37,19 @@ class SqliteClient implements ConnectorClient {
     }
   }
 
-  async getSchema(cacheKey?: string): Promise<string> {
-    const key = cacheKey || this.ds.database || "sqlite";
+  async getSchema(opts?: { cacheKey?: string; allowedTables?: string[] }): Promise<string> {
+    const key = opts?.cacheKey || this.ds.database || "sqlite";
     const cached = schemaCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) return cached.ddl;
+    if (cached && cached.expiresAt > Date.now()) {
+      const allowlist = opts?.allowedTables;
+      if (!allowlist) return cached.ddl;
+      const allowed = new Set(allowlist.map((table) => table.toLowerCase()));
+      return cached.ddl
+        .split("\n")
+        .filter(Boolean)
+        .filter((line) => allowed.has(line.slice(0, line.lastIndexOf(".")).toLowerCase()))
+        .join("\n");
+    }
 
     const db = await this.getConnection();
 
@@ -63,15 +72,26 @@ class SqliteClient implements ConnectorClient {
 
     const ddl = lines.join("\n");
     schemaCache.set(key, { ddl, expiresAt: Date.now() + SCHEMA_TTL });
-    return ddl;
+
+    const allowlist = opts?.allowedTables;
+    if (!allowlist) return ddl;
+    const allowed = new Set(allowlist.map((table) => table.toLowerCase()));
+    return ddl
+      .split("\n")
+      .filter(Boolean)
+      .filter((line) => allowed.has(line.slice(0, line.lastIndexOf(".")).toLowerCase()))
+      .join("\n");
   }
 
-  async getAllowedTables(): Promise<string[]> {
+  async getAllowedTables(allowedTables?: string[]): Promise<string[]> {
     const db = await this.getConnection();
     const tables = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
       .all() as { name: string }[];
-    return tables.map((t) => t.name);
+    const discovered = tables.map((t) => t.name);
+    if (!allowedTables) return discovered;
+    const allowed = new Set(allowedTables.map((table) => table.toLowerCase()));
+    return discovered.filter((table) => allowed.has(String(table).toLowerCase()));
   }
 
   async executeQuery(

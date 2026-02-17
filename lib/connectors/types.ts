@@ -5,10 +5,10 @@ export interface ConnectorClient {
   testConnection(): Promise<{ ok: boolean; ms: number; error?: string }>;
 
   /** Get schema in compact DDL format for NL→SQL prompt */
-  getSchema(cacheKey?: string): Promise<string>;
+  getSchema(opts?: { cacheKey?: string; allowedTables?: string[] }): Promise<string>;
 
   /** Get the list of allowed table names (for guardrails) */
-  getAllowedTables(): Promise<string[]>;
+  getAllowedTables(allowedTables?: string[]): Promise<string[]>;
 
   /** Execute a read-only query, return fields + rows */
   executeQuery(

@@ -1,5 +1,5 @@
 "use client";
-import { FormEvent, useCallback, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import { Database, TestTube2, Shield, HelpCircle, Loader2, CheckCircle2, XCircle, Info, Trash2 } from "lucide-react";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
@@ -16,6 +16,8 @@ import type { ParsedTable } from "@/lib/schemaParser";
 import { uploadCsvFile, getAuthHeaders } from "@/lib/uploadUtils";
 
 type ConnectorType = "postgres" | "mysql" | "sqlite" | "csv";
+type IntegrationPlatform = "stripe" | "shopify";
+type IntegrationMode = "api_key" | "oauth";
 
 type FormState = {
   type: ConnectorType;
@@ -62,9 +64,19 @@ export default function DataSourcesSettingsPage() {
   const [uploadingCsv, setUploadingCsv] = useState(false);
   const [schemaPreview, setSchemaPreview] = useState<ParsedTable[] | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [discoveredTables, setDiscoveredTables] = useState<string[]>([]);
+  const [monitoredTables, setMonitoredTables] = useState<string[]>([]);
   const [dataSources, setDataSources] = useState<DataSourceSummary[]>([]);
   const [activeDatasourceId, setActiveDatasourceId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [integrationPlatform, setIntegrationPlatform] = useState<IntegrationPlatform>("stripe");
+  const [integrationMode, setIntegrationMode] = useState<IntegrationMode>("api_key");
+  const [integrationApiKey, setIntegrationApiKey] = useState("");
+  const [integrationAccessToken, setIntegrationAccessToken] = useState("");
+  const [integrationRefreshToken, setIntegrationRefreshToken] = useState("");
+  const [integrationExpiresAt, setIntegrationExpiresAt] = useState("");
+  const [integrationBusy, setIntegrationBusy] = useState(false);
+  const [integrationMsg, setIntegrationMsg] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -89,6 +101,7 @@ export default function DataSourcesSettingsPage() {
     });
     setActiveDatasourceId(existing.id);
     localStorage.setItem("datasourceId", existing.id);
+    setMonitoredTables(existing.scopedTables || []);
     if (existing.orgId) {
       localStorage.setItem("orgId", existing.orgId);
       setOrgId(existing.orgId);
@@ -132,6 +145,15 @@ export default function DataSourcesSettingsPage() {
     setForm((prev) => ({ ...prev, [key]: val }));
   }, []);
 
+
+  const toggleMonitoredTable = useCallback((tableName: string) => {
+    setMonitoredTables((prev) => (
+      prev.includes(tableName)
+        ? prev.filter((name) => name !== tableName)
+        : [...prev, tableName]
+    ));
+  }, []);
+
   const handleSpreadsheetSelected = useCallback(async (file: File | null) => {
     setCsvFile(file);
     setSheetOptions([]);
@@ -157,6 +179,36 @@ export default function DataSourcesSettingsPage() {
     return await getAuthHeaders();
   }, []);
 
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadScopedSchema() {
+      if (!orgId || !activeDatasourceId) return;
+      try {
+        const res = await fetch(`/api/datasources/schema-info?orgId=${encodeURIComponent(orgId)}&datasourceId=${encodeURIComponent(activeDatasourceId)}`, {
+          headers: await authHeaders(),
+        });
+        if (!res.ok) return;
+        const payload = await res.json();
+        if (cancelled) return;
+        const tables: ParsedTable[] = payload.tables || [];
+        setSchemaPreview(tables);
+        const discovered = tables.map((t) => t.name);
+        setDiscoveredTables(discovered);
+        const scoped = Array.isArray(payload.scopedTables) ? payload.scopedTables : [];
+        setMonitoredTables(scoped.length ? scoped : discovered);
+      } catch {
+        // ignore schema load failures here
+      }
+    }
+
+    loadScopedSchema();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeDatasourceId, authHeaders, orgId]);
+
   const isSpreadsheet = form.type === "csv";
   const supportsSaveConnection = form.type !== "csv";
   const supportsTest = form.type !== "csv";
@@ -174,6 +226,8 @@ export default function DataSourcesSettingsPage() {
       return null;
     }
 
+    const selected = monitoredTables.length ? monitoredTables : discoveredTables;
+
     return {
       type: form.type,
       name: form.name,
@@ -182,8 +236,9 @@ export default function DataSourcesSettingsPage() {
       database: form.database,
       user: form.user,
       ...(form.password ? { password: form.password } : {}),
+      monitoredTables: selected,
     };
-  }, [form]);
+  }, [discoveredTables, form, monitoredTables]);
 
   const buildTestPayload = useCallback(() => {
     if (form.type === "sqlite") {
@@ -221,7 +276,11 @@ export default function DataSourcesSettingsPage() {
       });
       if (res.ok) {
         const data = await res.json();
-        setSchemaPreview(data.tables || []);
+        const tables: ParsedTable[] = data.tables || [];
+        setSchemaPreview(tables);
+        const discovered = tables.map((t) => t.name);
+        setDiscoveredTables(discovered);
+        setMonitoredTables((prev) => (prev.length ? prev.filter((name) => discovered.includes(name)) : discovered));
       }
     } catch {
       // Non-critical — just don't show the preview
@@ -277,6 +336,86 @@ export default function DataSourcesSettingsPage() {
     return list;
   }, []);
 
+
+  const activeDataSource = useMemo(
+    () => dataSources.find((ds) => ds.id === activeDatasourceId) || dataSources[0] || null,
+    [activeDatasourceId, dataSources],
+  );
+
+  const activeIntegration =
+    (activeDataSource?.integrationSummary?.[integrationPlatform] as any) || null;
+
+  const onSaveIntegration = useCallback(async () => {
+    if (!activeDataSource?.id) {
+      setIntegrationMsg("Save a data source first.");
+      return;
+    }
+
+    setIntegrationBusy(true);
+    setIntegrationMsg(null);
+    try {
+      const payload =
+        integrationMode === "api_key"
+          ? { mode: integrationMode, apiKey: integrationApiKey }
+          : {
+              mode: integrationMode,
+              oauth: {
+                accessToken: integrationAccessToken,
+                refreshToken: integrationRefreshToken || undefined,
+                expiresAt: integrationExpiresAt || undefined,
+              },
+            };
+
+      const res = await fetch(
+        `/api/datasources/${encodeURIComponent(activeDataSource.id)}/integrations/${integrationPlatform}`,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+          body: JSON.stringify(payload),
+        },
+      );
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body?.error || "Unable to save connector settings");
+      }
+      setIntegrationMsg("Connector saved");
+      await refreshDataSources();
+    } catch (error: any) {
+      setIntegrationMsg(String(error?.message || error));
+    } finally {
+      setIntegrationBusy(false);
+    }
+  }, [activeDataSource?.id, authHeaders, integrationAccessToken, integrationApiKey, integrationExpiresAt, integrationMode, integrationPlatform, integrationRefreshToken, refreshDataSources]);
+
+  const onSyncIntegration = useCallback(async () => {
+    if (!activeDataSource?.id) {
+      setIntegrationMsg("Save a data source first.");
+      return;
+    }
+
+    setIntegrationBusy(true);
+    setIntegrationMsg(null);
+    try {
+      const res = await fetch(
+        `/api/datasources/${encodeURIComponent(activeDataSource.id)}/integrations/${integrationPlatform}/sync`,
+        {
+          method: "POST",
+          headers: await authHeaders(),
+        },
+      );
+      const body = await res.json();
+      if (!res.ok) {
+        throw new Error(body?.error || "Sync failed");
+      }
+      setIntegrationMsg(`Sync complete (${body?.ingestedRecords ?? 0} records)`);
+      await refreshDataSources();
+    } catch (error: any) {
+      setIntegrationMsg(String(error?.message || error));
+    } finally {
+      setIntegrationBusy(false);
+    }
+  }, [activeDataSource?.id, authHeaders, integrationPlatform, refreshDataSources]);
+
   const onSave = useCallback(async () => {
     if (!supportsSaveConnection) {
       setSaveOk(false);
@@ -307,6 +446,9 @@ export default function DataSourcesSettingsPage() {
       } else {
         setSaveOk(true);
         setSaveMsg("Saved");
+        if (Array.isArray(responsePayload?.monitoredTables)) {
+          setMonitoredTables(responsePayload.monitoredTables);
+        }
         if (responsePayload?.orgId) {
           localStorage.setItem("orgId", responsePayload.orgId);
           setOrgId(responsePayload.orgId);
@@ -701,6 +843,98 @@ export default function DataSourcesSettingsPage() {
               </CardBody>
             </Card>
 
+            <Card>
+              <CardHeader title="API Connectors" subtitle="Connect Stripe/Shopify, then ingest normalized finance records" />
+              <CardBody>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["stripe", "shopify"] as IntegrationPlatform[]).map((platform) => (
+                      <button
+                        key={platform}
+                        type="button"
+                        onClick={() => setIntegrationPlatform(platform)}
+                        className={`rounded-lg border px-3 py-2 text-xs uppercase tracking-[0.12em] ${
+                          integrationPlatform === platform
+                            ? "border-grape-400 bg-grape-500/20 text-grape-100"
+                            : "border-white/[0.08] bg-white/[0.02] text-grape-300"
+                        }`}
+                      >
+                        {platform}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["api_key", "oauth"] as IntegrationMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setIntegrationMode(mode)}
+                        className={`rounded-lg border px-3 py-2 text-xs uppercase tracking-[0.12em] ${
+                          integrationMode === mode
+                            ? "border-grape-400 bg-grape-500/20 text-grape-100"
+                            : "border-white/[0.08] bg-white/[0.02] text-grape-300"
+                        }`}
+                      >
+                        {mode === "api_key" ? "API key" : "OAuth"}
+                      </button>
+                    ))}
+                  </div>
+
+                  {integrationMode === "api_key" ? (
+                    <Input
+                      label="API Key"
+                      type="password"
+                      value={integrationApiKey}
+                      onChange={(event) => setIntegrationApiKey((event.target as HTMLInputElement).value)}
+                      placeholder="sk_live_..."
+                      helperText="Encrypted at rest using the same secret infrastructure as datasource credentials."
+                    />
+                  ) : (
+                    <>
+                      <Input
+                        label="Access Token"
+                        type="password"
+                        value={integrationAccessToken}
+                        onChange={(event) => setIntegrationAccessToken((event.target as HTMLInputElement).value)}
+                        placeholder="OAuth access token"
+                      />
+                      <Input
+                        label="Refresh Token"
+                        type="password"
+                        value={integrationRefreshToken}
+                        onChange={(event) => setIntegrationRefreshToken((event.target as HTMLInputElement).value)}
+                        placeholder="Optional"
+                      />
+                      <Input
+                        label="Expires At (ISO)"
+                        value={integrationExpiresAt}
+                        onChange={(event) => setIntegrationExpiresAt((event.target as HTMLInputElement).value)}
+                        placeholder="2026-01-01T00:00:00.000Z"
+                      />
+                    </>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button type="button" variant="secondary" disabled={integrationBusy} onClick={onSaveIntegration}>
+                      Save Connector
+                    </Button>
+                    <Button type="button" variant="primary" disabled={integrationBusy} onClick={onSyncIntegration}>
+                      Sync Now
+                    </Button>
+                  </div>
+
+                  <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-3 text-xs text-grape-300">
+                    <p>Status: <span className="font-medium text-grape-100">{activeIntegration?.sync?.status || "not_configured"}</span></p>
+                    <p>Last successful sync: {activeIntegration?.sync?.lastSuccessfulSyncAt || "Never"}</p>
+                    <p>Error: {activeIntegration?.sync?.error || "None"}</p>
+                  </div>
+
+                  {integrationMsg && <p className="text-xs text-grape-300">{integrationMsg}</p>}
+                </div>
+              </CardBody>
+            </Card>
+
             {/* Schema preview (auto-shown after successful test) */}
             {(loadingPreview || schemaPreview) && (
               <Card>
@@ -712,7 +946,25 @@ export default function DataSourcesSettingsPage() {
                       Scanning your database...
                     </div>
                   ) : schemaPreview && schemaPreview.length > 0 ? (
-                    <SchemaPreview tables={schemaPreview} />
+                    <div className="space-y-4">
+                      <SchemaPreview tables={schemaPreview} />
+                      <div className="rounded-lg border border-white/[0.08] bg-white/[0.02] p-3">
+                        <p className="mb-2 text-xs font-medium uppercase tracking-[0.12em] text-grape-300">Monitored Tables</p>
+                        <p className="mb-3 text-xs text-grape-400">Select the tables Data Vista can use for queries, monitoring, and KPI calculations.</p>
+                        <div className="max-h-48 space-y-1 overflow-auto pr-1">
+                          {discoveredTables.map((tableName) => (
+                            <label key={tableName} className="flex items-center gap-2 text-xs text-grape-200">
+                              <input
+                                type="checkbox"
+                                checked={monitoredTables.includes(tableName)}
+                                onChange={() => toggleMonitoredTable(tableName)}
+                              />
+                              <span>{tableName}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
                   ) : (
                     <p className="text-xs text-grape-400 text-center py-4">No tables found in this database.</p>
                   )}

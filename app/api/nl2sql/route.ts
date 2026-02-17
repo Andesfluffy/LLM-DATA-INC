@@ -3,6 +3,7 @@ import { prisma as appPrisma } from "@/lib/db";
 import { nlToSql } from "@/src/server/generateSql";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
+import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { getGlossaryContext } from "@/lib/glossary";
 import { getConnector } from "@/lib/connectors/registry";
 import { getGuardrails } from "@/lib/connectors/guards";
@@ -31,8 +32,12 @@ export async function POST(req: NextRequest) {
   const cacheOrgId = ds.orgId ?? org.id;
 
   try {
+    const scopedTables = await getPersistedDatasourceScope(ds.id);
+    if (!scopedTables.length) {
+      return NextResponse.json({ error: "No monitored tables selected for this data source. Update scope in Settings." }, { status: 400 });
+    }
     const schemaKey = `${ds.id}:${ds.type}`;
-    const schema = await client.getSchema(schemaKey);
+    const schema = await client.getSchema({ cacheKey: schemaKey, allowedTables: scopedTables });
     const schemaHash = crypto.createHash("sha256").update(schema).digest("hex");
 
     const glossaryCtx = await getGlossaryContext(cacheOrgId);
@@ -60,7 +65,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Only read-only SELECT queries are allowed" }, { status: 400 });
     }
 
-    const allowedTables = await client.getAllowedTables();
+    const allowedTables = await client.getAllowedTables(scopedTables);
     const guard = guards.validateSql(generated, allowedTables);
     if (!guard.ok) {
       await appPrisma.auditLog.create({
