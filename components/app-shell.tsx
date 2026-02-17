@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
+import { useFirebaseAuth, FirebaseAuthProvider } from "@/src/hooks/useFirebaseAuth";
 
 import AuthNav from "@/components/auth-nav";
 import NavLink from "@/components/nav-link";
@@ -13,6 +13,14 @@ type AppShellProps = {
 };
 
 export default function AppShell({ children }: AppShellProps) {
+  return (
+    <FirebaseAuthProvider>
+      <AppShellInner>{children}</AppShellInner>
+    </FirebaseAuthProvider>
+  );
+}
+
+function AppShellInner({ children }: AppShellProps) {
   const { user, loading } = useFirebaseAuth();
   const isSignedIn = Boolean(user);
 

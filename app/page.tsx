@@ -309,18 +309,30 @@ export default function HomePage() {
 
                 <Card>
                   <CardBody>
-                    <div className="mb-4 flex items-start gap-2.5">
-                      <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05] text-white">
-                        <MessageSquare className="h-4 w-4" />
+                    <div className="mb-4 flex items-start justify-between gap-2.5">
+                      <div className="flex items-start gap-2.5">
+                        <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05] text-white">
+                          <MessageSquare className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {hasDatasource ? "Ask a question about your data" : "Connect your data to get started"}
+                          </p>
+                          {hasDatasource ? (
+                            <p className="text-xs text-grape-400 mt-0.5">Type in plain English - no coding needed</p>
+                          ) : (
+                            <p className="text-xs text-grape-400 mt-0.5">Connect a database or upload a spreadsheet first</p>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-sm font-semibold text-white">
-                          {hasDatasource ? "Ask a question about your data" : "Connect your data to get started"}
-                        </p>
-                        {hasDatasource && (
-                          <p className="text-xs text-grape-400 mt-0.5">Type in plain English - no coding needed</p>
-                        )}
-                      </div>
+                      <Button
+                        variant={hasDatasource ? "secondary" : "primary"}
+                        onClick={() => setShowConnectModal(true)}
+                        className="shrink-0 text-xs !px-3 !py-1.5"
+                      >
+                        <Database className="h-3.5 w-3.5" />
+                        {hasDatasource ? "Switch Source" : "Connect Database"}
+                      </Button>
                     </div>
               {!hasDatasource && (
                 <div className="text-center py-8">
