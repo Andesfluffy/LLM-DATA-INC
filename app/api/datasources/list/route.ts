@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { ensureUserAndOrg } from "@/lib/userOrg";
 import { redactDataSourceSecrets } from "@/lib/datasourceSecrets";
+import { getIntegrationsFromMetadata, redactIntegrationConfig } from "@/src/server/integrations/metadata";
 
 export async function GET(req: NextRequest) {
   const authUser = await getUserFromRequest(req);
@@ -23,6 +24,17 @@ export async function GET(req: NextRequest) {
   });
 
   return NextResponse.json({
-    dataSources: dataSources.map((ds: any) => redactDataSourceSecrets(ds)),
+    dataSources: dataSources.map((ds: any) => {
+      const redacted = redactDataSourceSecrets(ds);
+      const integrations = getIntegrationsFromMetadata(redacted.metadata);
+      const integrationSummary = Object.fromEntries(
+        Object.entries(integrations)
+          .map(([platform, config]) => [platform, config ? redactIntegrationConfig(config) : null])
+      );
+      return {
+        ...redacted,
+        integrationSummary,
+      };
+    }),
   });
 }
