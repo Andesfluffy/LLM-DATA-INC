@@ -2,14 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { z } from "zod";
 
-import { prisma } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { buildDatasetOverviewResult, isDatasetOverviewQuestion } from "@/lib/datasetOverview";
-import { getGlossaryContext } from "@/lib/glossary";
 import { getGuardrails } from "@/lib/connectors/guards";
 import { getConnector } from "@/lib/connectors/registry";
-import { findAccessibleDataSource } from "@/lib/userOrg";
-import { assertIpAllowlisted, getRequestIp, requireOrgPermission } from "@/lib/rbac";
+import { ensureUser, findAccessibleDataSource } from "@/lib/userOrg";
 import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { logAuditEvent } from "@/lib/auditLog";
 import { nlToSql } from "@/src/server/generateSql";
@@ -17,7 +14,6 @@ import "@/lib/connectors/init";
 
 const HistoryTurn = z.object({ question: z.string().max(500), sql: z.string().max(2000) });
 const Body = z.object({
-  orgId: z.string().min(1),
   datasourceId: z.string().min(1),
   question: z.string().min(1),
   history: z.array(HistoryTurn).max(5).optional(),
@@ -35,15 +31,10 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
-  const { orgId, datasourceId, question, history } = parsed.data;
-  const access = await requireOrgPermission(userAuth, "reporting:run", orgId);
-  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const { user: dbUser, org } = access;
-  if (!(await assertIpAllowlisted(org.id, getRequestIp(req.headers)))) {
-    return NextResponse.json({ error: "IP address not allowed" }, { status: 403 });
-  }
+  const { datasourceId, question, history } = parsed.data;
+  const { user: dbUser } = await ensureUser(userAuth);
 
-  const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
+  const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId });
   if (!ds) {
     return NextResponse.json(
       { error: "No data source found. Please connect a database or upload a CSV/Excel file in Settings first." },
@@ -56,7 +47,6 @@ export async function POST(req: NextRequest) {
   const guards = getGuardrails(factory.dialect);
 
   const t0 = Date.now();
-  const resolvedOrgId = ds.orgId ?? org.id;
 
   try {
     const scopedTables = await getPersistedDatasourceScope(ds.id);
@@ -72,30 +62,16 @@ export async function POST(req: NextRequest) {
       const sql = "-- DATASET OVERVIEW (schema-based)";
       const durationMs = Date.now() - t0;
 
-      await Promise.all([
-        logAuditEvent({ orgId: resolvedOrgId, userId: dbUser.id, action: "report.generated", question, sql, durationMs, rowCount: overview.rowCount, targetType: "datasource", targetId: ds.id }),
-        prisma.savedQuery.create({
-          data: {
-            orgId: resolvedOrgId,
-            userId: dbUser.id,
-            question,
-            sql,
-          },
-        }),
-      ]);
+      await logAuditEvent({ userId: dbUser.id, action: "report.generated", question, sql, durationMs, rowCount: overview.rowCount, targetType: "datasource", targetId: ds.id });
 
       return NextResponse.json({ sql, fields: overview.fields, rows: overview.rows });
     }
 
-    const glossaryCtx = await getGlossaryContext(resolvedOrgId);
     const schemaHash = crypto.createHash("sha256").update(schema).digest("hex");
-    const glossaryHash = glossaryCtx
-      ? crypto.createHash("sha256").update(glossaryCtx).digest("hex").slice(0, 8)
-      : "";
     const historyHash = history?.length
       ? crypto.createHash("sha256").update(JSON.stringify(history)).digest("hex").slice(0, 8)
       : "";
-    const cacheKey = `${resolvedOrgId}|${schemaHash}|${glossaryHash}|${historyHash}|${crypto
+    const cacheKey = `${ds.id}|${schemaHash}|${historyHash}|${crypto
       .createHash("sha256")
       .update(question)
       .digest("hex")}`;
@@ -108,7 +84,6 @@ export async function POST(req: NextRequest) {
       sqlRaw = await nlToSql({
         question,
         schema,
-        orgContext: glossaryCtx || undefined,
         dialect: factory.dialect,
         conversationHistory: history,
       });
@@ -141,17 +116,7 @@ export async function POST(req: NextRequest) {
     const result = await client.executeQuery(sql, { timeoutMs: 10000 });
 
     const durationMs = Date.now() - t0;
-    await Promise.all([
-      logAuditEvent({ orgId: resolvedOrgId, userId: dbUser.id, action: "report.generated", question, sql, durationMs, rowCount: result.rowCount, targetType: "datasource", targetId: ds.id }),
-      prisma.savedQuery.create({
-        data: {
-          orgId: resolvedOrgId,
-          userId: dbUser.id,
-          question,
-          sql,
-        },
-      }),
-    ]);
+    await logAuditEvent({ userId: dbUser.id, action: "report.generated", question, sql, durationMs, rowCount: result.rowCount, targetType: "datasource", targetId: ds.id });
 
     return NextResponse.json({ sql, fields: result.fields, rows: result.rows });
   } catch (e: any) {

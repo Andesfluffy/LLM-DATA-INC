@@ -7,7 +7,7 @@ import { join } from "path";
 type CsvMetadata = {
   filePath?: string;
   csvBase64?: string;
-  storage?: "inline_base64" | "filesystem";
+  storage?: "inline_base64" | "filesystem" | "r2";
   tableName?: string;
   delimiter?: string;
 };
@@ -24,12 +24,19 @@ class CsvClient implements ConnectorClient {
     this.tableName = this.metadata.tableName || "data";
   }
 
-  private readCsvContent(): string {
+  private async readCsvContent(): Promise<string> {
     if (this.metadata.csvBase64) {
       return Buffer.from(this.metadata.csvBase64, "base64").toString("utf-8");
     }
 
     if (this.metadata.filePath) {
+      // R2 storage
+      if (this.metadata.filePath.startsWith("r2://")) {
+        const { downloadFromR2, r2KeyFromPath } = await import("@/lib/r2");
+        const buf = await downloadFromR2(r2KeyFromPath(this.metadata.filePath));
+        return buf.toString("utf-8");
+      }
+      // Local filesystem (dev/legacy)
       const fullPath = join(process.cwd(), this.metadata.filePath);
       return readFileSync(fullPath, "utf-8");
     }
@@ -169,7 +176,7 @@ class CsvClient implements ConnectorClient {
     this.db = new SQL.Database();
 
     const delimiter = this.metadata.delimiter || ",";
-    const content = this.readCsvContent();
+    const content = await this.readCsvContent();
     const { headers, rows } = this.parseCsvRows(content, delimiter);
     const types = this.inferColumnTypes(rows, headers.length);
 

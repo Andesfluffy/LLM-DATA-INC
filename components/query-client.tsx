@@ -21,7 +21,6 @@ type QueryClientProps = {
 
 type Row = Record<string, unknown>;
 type ConnectionIds = {
-  orgId: string;
   datasourceId: string;
 };
 
@@ -44,27 +43,21 @@ export default function QueryClient({ canRun }: QueryClientProps) {
 
   const ensureConnectionIds = useCallback(async (): Promise<ConnectionIds | null> => {
     try {
-      let orgId = localStorage.getItem("orgId");
       let datasourceId = localStorage.getItem("datasourceId");
 
-      if (orgId && datasourceId) {
-        return { orgId, datasourceId };
+      if (datasourceId) {
+        return { datasourceId };
       }
 
       const list = await fetchAccessibleDataSources();
       if (list.length > 0) {
         const first = list[0]!;
         datasourceId = first.id;
-        orgId = first.orgId || null;
-
         localStorage.setItem("datasourceId", datasourceId);
-        if (first.orgId) {
-          localStorage.setItem("orgId", first.orgId);
-        }
       }
 
-      if (orgId && datasourceId) {
-        return { orgId, datasourceId };
+      if (datasourceId) {
+        return { datasourceId };
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -80,7 +73,7 @@ export default function QueryClient({ canRun }: QueryClientProps) {
       return null;
     }
 
-    const { orgId, datasourceId } = ids;
+    const { datasourceId } = ids;
     const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
 
     const response = await fetch(endpoint, {
@@ -89,7 +82,7 @@ export default function QueryClient({ canRun }: QueryClientProps) {
         "Content-Type": "application/json",
         ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
       },
-      body: JSON.stringify({ ...payload, orgId, datasourceId }),
+      body: JSON.stringify({ ...payload, datasourceId }),
     });
 
     if (!response.ok) {

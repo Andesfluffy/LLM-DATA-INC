@@ -31,7 +31,6 @@ type QueryResult = {
 };
 
 type ConnectionIds = {
-  orgId: string;
   datasourceId: string;
 };
 
@@ -63,8 +62,7 @@ export default function HomePage() {
   const syncFromLocalStorage = useCallback(() => {
     try {
       const datasourceId = localStorage.getItem("datasourceId");
-      const orgId = localStorage.getItem("orgId");
-      setHasDatasource(Boolean(datasourceId && orgId));
+      setHasDatasource(Boolean(datasourceId));
     } catch {
       setHasDatasource(false);
     }
@@ -72,27 +70,21 @@ export default function HomePage() {
 
   const resolveConnectionIds = useCallback(async (): Promise<ConnectionIds | null> => {
     try {
-      let orgId = localStorage.getItem("orgId");
       let datasourceId = localStorage.getItem("datasourceId");
 
-      if (orgId && datasourceId) {
-        return { orgId, datasourceId };
+      if (datasourceId) {
+        return { datasourceId };
       }
 
       const list = await fetchAccessibleDataSources();
       if (list.length > 0) {
         const first = list[0]!;
         datasourceId = first.id;
-        orgId = first.orgId || null;
-
         localStorage.setItem("datasourceId", datasourceId);
-        if (first.orgId) {
-          localStorage.setItem("orgId", first.orgId);
-        }
       }
 
-      if (orgId && datasourceId) {
-        return { orgId, datasourceId };
+      if (datasourceId) {
+        return { datasourceId };
       }
     } catch (err) {
       console.error("Failed to resolve data source ids", err);
@@ -130,38 +122,11 @@ export default function HomePage() {
     };
   }, [user, resolveConnectionIds, syncFromLocalStorage]);
 
-  // Check onboarding status
+  // Check onboarding status — show wizard if no datasource is configured
   useEffect(() => {
-    let cancelled = false;
-    const check = async () => {
-      try {
-        const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
-        if (!idToken) { setOnboardingChecked(true); return; }
-        const res = await fetch("/api/user/onboarding", {
-          headers: { Authorization: `Bearer ${idToken}` },
-        });
-        if (!res.ok) { setOnboardingChecked(true); return; }
-        const data = await res.json();
-        if (!cancelled) {
-          const onboardingComplete =
-            typeof data?.onboardingComplete === "boolean"
-              ? data.onboardingComplete
-              : Boolean(data?.complete);
-          const datasourceCount =
-            typeof data?.datasourceCount === "number"
-              ? data.datasourceCount
-              : data?.hasDataSources
-                ? 1
-                : 0;
-          setShowOnboarding(!onboardingComplete && datasourceCount === 0);
-          setOnboardingChecked(true);
-        }
-      } catch {
-        if (!cancelled) setOnboardingChecked(true);
-      }
-    };
-    check();
-    return () => { cancelled = true; };
+    const datasourceId = localStorage.getItem("datasourceId");
+    setShowOnboarding(!datasourceId);
+    setOnboardingChecked(true);
   }, [user]);
 
   // Allow re-opening the tutorial from the user menu
@@ -195,7 +160,7 @@ export default function HomePage() {
           return;
         }
 
-        const { orgId, datasourceId } = ids;
+        const { datasourceId } = ids;
         const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
         const response = await fetch("/api/query", {
           method: "POST",
@@ -204,7 +169,6 @@ export default function HomePage() {
             ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}),
           },
           body: JSON.stringify({
-            orgId,
             datasourceId,
             question: prompt,
             ...(thread.length > 0 ? { history: thread } : {}),

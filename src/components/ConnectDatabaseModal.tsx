@@ -77,7 +77,6 @@ export default function ConnectDatabaseModal({ open, onClose, onConnected }: Pro
   const applyDatasource = useCallback((ds: DataSourceSummary | null) => {
     if (!ds) return;
     localStorage.setItem("datasourceId", ds.id);
-    if (ds.orgId) localStorage.setItem("orgId", ds.orgId);
   }, []);
 
   const onTest = useCallback(async () => {
@@ -133,7 +132,6 @@ export default function ConnectDatabaseModal({ open, onClose, onConnected }: Pro
         return;
       }
       setFeedback({ ok: true, msg: "Connected!" });
-      if (data?.orgId) localStorage.setItem("orgId", data.orgId);
       const list = await fetchAccessibleDataSources();
       applyDatasource((data?.id ? list.find((ds) => ds.id === data.id) : null) || list[0] || null);
       setTimeout(() => { onConnected(); onClose(); }, 600);
@@ -166,7 +164,6 @@ export default function ConnectDatabaseModal({ open, onClose, onConnected }: Pro
     try {
       const payload = await uploadCsvFile(csvFile, form.name || csvFile.name, selectedSheet);
       setFeedback({ ok: true, msg: "Uploaded!" });
-      if (payload.orgId) localStorage.setItem("orgId", payload.orgId);
       const list = await fetchAccessibleDataSources();
       applyDatasource((payload.id ? list.find((ds) => ds.id === payload.id) : null) || list[0] || null);
       setTimeout(() => { onConnected(); onClose(); }, 600);

@@ -30,7 +30,19 @@ export function resolveManagedUploadPath(filePath: string): string | null {
   return absolutePath;
 }
 
-export function deleteManagedUploadFile(filePath: string): { deleted: boolean; reason?: string } {
+export async function deleteManagedUploadFile(filePath: string): Promise<{ deleted: boolean; reason?: string }> {
+  // R2 storage
+  if (filePath.startsWith("r2://")) {
+    try {
+      const { deleteFromR2, r2KeyFromPath } = await import("@/lib/r2");
+      await deleteFromR2(r2KeyFromPath(filePath));
+      return { deleted: true };
+    } catch {
+      return { deleted: false, reason: "r2_delete_failed" };
+    }
+  }
+
+  // Local filesystem
   const absolutePath = resolveManagedUploadPath(filePath);
   if (!absolutePath) {
     return { deleted: false, reason: "unsafe_path" };

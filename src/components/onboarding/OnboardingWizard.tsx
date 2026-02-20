@@ -118,17 +118,7 @@ export default function OnboardingWizard({
     };
   }, [form]);
 
-  const skipOnboarding = useCallback(async () => {
-    try {
-      const headers = await getAuthHeaders();
-      await fetch("/api/user/onboarding", {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ complete: true }),
-      });
-    } catch {
-      // ignore
-    }
+  const skipOnboarding = useCallback(() => {
     onComplete();
   }, [onComplete]);
 
@@ -143,8 +133,6 @@ export default function OnboardingWizard({
 
     if (uploadPayload.id) {
       localStorage.setItem("datasourceId", uploadPayload.id);
-      if (uploadPayload.orgId)
-        localStorage.setItem("orgId", uploadPayload.orgId);
     }
 
     return uploadPayload;
@@ -201,7 +189,6 @@ export default function OnboardingWizard({
 
       if (saveData.id) {
         localStorage.setItem("datasourceId", saveData.id);
-        if (saveData.orgId) localStorage.setItem("orgId", saveData.orgId);
       }
 
       setStep("test");
@@ -236,43 +223,22 @@ export default function OnboardingWizard({
     uploadSpreadsheet,
   ]);
 
-  const handleDemoDb = useCallback(async () => {
-    setSaving(true);
-    try {
-      const headers = await getAuthHeaders();
-      const res = await fetch("/api/datasources/demo", {
-        method: "POST",
-        headers,
-      });
-      const payload = await res.json();
-      if (!res.ok) throw new Error(payload?.error || "Failed to set up demo");
-      if (payload.id) {
-        localStorage.setItem("datasourceId", payload.id);
-        if (payload.orgId) localStorage.setItem("orgId", payload.orgId);
-      }
-      setStep("test");
-      setTestOk(true);
-      setTestMsg("Demo database configured");
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to set up demo");
-    } finally {
-      setSaving(false);
-    }
+  const handleDemoDb = useCallback(() => {
+    toast.error("Demo database is not available. Please connect your own data source.");
   }, []);
 
   const handleFirstQuery = useCallback(async () => {
     if (!query.trim()) return;
     setQueryBusy(true);
     try {
-      const orgId = localStorage.getItem("orgId");
       const datasourceId = localStorage.getItem("datasourceId");
-      if (!orgId || !datasourceId) throw new Error("No data source configured");
+      if (!datasourceId) throw new Error("No data source configured");
 
       const headers = await getAuthHeaders();
       const res = await fetch("/api/query", {
         method: "POST",
         headers,
-        body: JSON.stringify({ orgId, datasourceId, question: query.trim() }),
+        body: JSON.stringify({ datasourceId, question: query.trim() }),
       });
       const payload = await res.json();
       if (!res.ok) throw new Error(payload?.error || "Query failed");
@@ -285,17 +251,7 @@ export default function OnboardingWizard({
     }
   }, [query]);
 
-  const completeOnboarding = useCallback(async () => {
-    try {
-      const headers = await getAuthHeaders();
-      await fetch("/api/user/onboarding", {
-        method: "PUT",
-        headers,
-        body: JSON.stringify({ complete: true }),
-      });
-    } catch {
-      // ignore
-    }
+  const completeOnboarding = useCallback(() => {
     onComplete();
   }, [onComplete]);
 

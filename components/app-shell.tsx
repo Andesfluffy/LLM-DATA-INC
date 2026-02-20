@@ -7,7 +7,6 @@ import { useFirebaseAuth, FirebaseAuthProvider } from "@/src/hooks/useFirebaseAu
 
 import AuthNav from "@/components/auth-nav";
 import NavLink from "@/components/nav-link";
-import NotificationBell from "@/components/notification-bell";
 
 type AppShellProps = {
   children: ReactNode;
@@ -61,12 +60,8 @@ function AppShellInner({ children }: AppShellProps) {
             <NavLink href="/" exact>
               Home
             </NavLink>
-            <NavLink href="/snapshot">Snapshot</NavLink>
-            <NavLink href="/monitoring">Monitoring</NavLink>
-            <NavLink href="/reports">Reports</NavLink>
-            <NavLink href="/history">History</NavLink>
             <NavLink href="/settings/datasources" exact={false}>
-              Settings
+              Data Sources
             </NavLink>
           </nav>
 
@@ -93,39 +88,14 @@ function AppShellInner({ children }: AppShellProps) {
                   Home
                 </Link>
                 <Link
-                  href="/snapshot"
-                  className="block rounded-lg px-3 py-2.5 text-sm text-grape-300 transition hover:bg-white/[0.04] hover:text-white"
-                >
-                  Snapshot
-                </Link>
-                <Link
-                  href="/monitoring"
-                  className="block rounded-lg px-3 py-2.5 text-sm text-grape-300 transition hover:bg-white/[0.04] hover:text-white"
-                >
-                  Monitoring
-                </Link>
-                <Link
-                  href="/reports"
-                  className="block rounded-lg px-3 py-2.5 text-sm text-grape-300 transition hover:bg-white/[0.04] hover:text-white"
-                >
-                  Reports
-                </Link>
-                <Link
-                  href="/history"
-                  className="block rounded-lg px-3 py-2.5 text-sm text-grape-300 transition hover:bg-white/[0.04] hover:text-white"
-                >
-                  History
-                </Link>
-                <Link
                   href="/settings/datasources"
                   className="block rounded-lg px-3 py-2.5 text-sm text-grape-300 transition hover:bg-white/[0.04] hover:text-white"
                 >
-                  Settings
+                  Data Sources
                 </Link>
               </div>
             </details>
 
-            <NotificationBell />
             <AuthNav />
           </div>
         </div>
@@ -169,7 +139,7 @@ function AppShellInner({ children }: AppShellProps) {
               </div>
             </div>
 
-            <div className="sm:col-span-3">
+            <div className="sm:col-span-7">
               <h4 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-grape-500">
                 Product
               </h4>
@@ -181,58 +151,10 @@ function AppShellInner({ children }: AppShellProps) {
                 </li>
                 <li>
                   <Link
-                    href="/snapshot"
-                    className="text-sm text-grape-400 transition hover:text-white"
-                  >
-                    Business Snapshot
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/monitoring"
-                    className="text-sm text-grape-400 transition hover:text-white"
-                  >
-                    Monitoring
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/reports"
-                    className="text-sm text-grape-400 transition hover:text-white"
-                  >
-                    Reports
-                  </Link>
-                </li>
-                <li>
-                  <Link
                     href="/settings/datasources"
                     className="text-sm text-grape-400 transition hover:text-white"
                   >
                     Data Sources
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div className="sm:col-span-4">
-              <h4 className="mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-grape-500">
-                Platform
-              </h4>
-              <ul className="space-y-2.5">
-                <li>
-                  <Link
-                    href="/settings/datasources"
-                    className="text-sm text-grape-400 transition hover:text-white"
-                  >
-                    Connect Database
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/dashboard"
-                    className="text-sm text-grape-400 transition hover:text-white"
-                  >
-                    Dashboards
                   </Link>
                 </li>
               </ul>

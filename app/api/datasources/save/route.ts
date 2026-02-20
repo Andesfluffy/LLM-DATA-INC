@@ -4,10 +4,10 @@ import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { encryptPassword } from "@/lib/datasourceSecrets";
 import { getConnector } from "@/lib/connectors/registry";
 import "@/lib/connectors/init";
-import { requireOrgPermission } from "@/lib/rbac";
+import { ensureUser } from "@/lib/userOrg";
 import { logAuditEvent } from "@/lib/auditLog";
 import { z } from "zod";
-import { resolveOrgEntitlements, blockedEntitlementResponse } from "@/lib/entitlements";
+
 
 export async function POST(req: NextRequest) {
   const userAuth = await getUserFromRequest(req);
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 
   const body = parsed.data;
-  const { name, type, monitoredTables } = body;
+  const { name, type } = body;
 
   if (type === "csv") {
     return NextResponse.json(
@@ -48,9 +48,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: validation.errors.join(". ") }, { status: 400 });
   }
 
-  const access = await requireOrgPermission(userAuth, "datasource:edit");
-  if (!access) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  const { user: dbUser, org } = access;
+  const { user: dbUser } = await ensureUser(userAuth);
   const hasPassword = Object.prototype.hasOwnProperty.call(body, "password");
   const password = hasPassword ? body.password : undefined;
   const usesPassword = type === "postgres" || type === "mysql";
@@ -95,30 +93,15 @@ export async function POST(req: NextRequest) {
 
   const existing = await prisma.dataSource.findFirst({
     where: {
-      orgId: org.id,
       ownerId: dbUser.id,
       ...(matchers.length ? { OR: matchers } : {}),
     },
   });
 
-  const entitlements = await resolveOrgEntitlements(org.id);
-  const maxSources = typeof entitlements.limits.maxSources === "number" ? entitlements.limits.maxSources : null;
-  const countFn = (prisma.dataSource as any).count;
-  if (!existing && maxSources && typeof countFn === "function") {
-    const sourceCount = await countFn({ where: { orgId: org.id } });
-    if (sourceCount >= maxSources) {
-      return NextResponse.json(
-        blockedEntitlementResponse("Additional data sources", entitlements, "pro"),
-        { status: 403 }
-      );
-    }
-  }
-
   const ds = existing
     ? await prisma.dataSource.update({
         where: { id: existing.id },
         data: {
-          orgId: org.id,
           ownerId: dbUser.id,
           type,
           name: name || existing.name,
@@ -139,7 +122,6 @@ export async function POST(req: NextRequest) {
       })
     : await prisma.dataSource.create({
         data: {
-          orgId: org.id,
           ownerId: dbUser.id,
           type,
           name: name || `${database}@${host}`,
@@ -156,13 +138,11 @@ export async function POST(req: NextRequest) {
       });
 
   await logAuditEvent({
-    orgId: org.id,
     userId: dbUser.id,
     action: existing ? "datasource.scope_changed" : "datasource.connect",
     targetType: "datasource",
     targetId: ds.id,
-    metadata: { type: ds.type, name: ds.name },
   });
 
-  return NextResponse.json({ id: ds.id, orgId: ds.orgId, ownerId: ds.ownerId });
+  return NextResponse.json({ id: ds.id, ownerId: ds.ownerId });
 }

@@ -12,9 +12,8 @@ export function useSchemaInfo() {
   const fetchSchema = useCallback(async () => {
     if (fetched.current) return;
 
-    const orgId = localStorage.getItem("orgId");
     const datasourceId = localStorage.getItem("datasourceId");
-    if (!orgId || !datasourceId) return;
+    if (!datasourceId) return;
 
     setLoading(true);
     setError(null);
@@ -23,7 +22,7 @@ export function useSchemaInfo() {
     try {
       const idToken = await (await import("@/lib/firebase/client")).auth.currentUser?.getIdToken();
       const res = await fetch(
-        `/api/datasources/schema-info?orgId=${encodeURIComponent(orgId)}&datasourceId=${encodeURIComponent(datasourceId)}`,
+        `/api/datasources/schema-info?datasourceId=${encodeURIComponent(datasourceId)}`,
         {
           headers: idToken ? { Authorization: `Bearer ${idToken}` } : {},
         }

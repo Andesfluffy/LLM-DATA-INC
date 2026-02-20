@@ -2,8 +2,6 @@ import { NextRequest } from "next/server";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { streamInsights } from "@/lib/insights";
 import { z } from "zod";
-import { ensureUserAndOrg } from "@/lib/userOrg";
-import { blockedEntitlementResponse, resolveOrgEntitlements } from "@/lib/entitlements";
 
 const Body = z.object({
   question: z.string().min(1),
@@ -21,15 +19,6 @@ export async function POST(req: NextRequest) {
   const parsed = Body.safeParse(await req.json());
   if (!parsed.success) {
     return new Response(JSON.stringify({ error: parsed.error.flatten() }), { status: 400 });
-  }
-
-  const { org } = await ensureUserAndOrg(user);
-  const entitlements = await resolveOrgEntitlements(org.id);
-  if (!entitlements.features.weeklyReports) {
-    return new Response(
-      JSON.stringify(blockedEntitlementResponse("AI reporting insights", entitlements, "pro")),
-      { status: 403, headers: { "Content-Type": "application/json" } },
-    );
   }
 
   const encoder = new TextEncoder();

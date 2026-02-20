@@ -8,6 +8,10 @@ export const AUTH_ERROR_MESSAGE =
 export async function getUserFromRequest(req: NextRequest): Promise<AuthUser> {
   const authz = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!authz) {
+    // Dev-mode bypass: return a test user when no auth header is present
+    if (process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS === "true") {
+      return { uid: "dev-test-user", email: "dev@test.local" };
+    }
     if (process.env.NODE_ENV !== "production") {
       console.warn("[auth-server] No Authorization header found in request");
     }
@@ -24,6 +28,10 @@ export async function getUserFromRequest(req: NextRequest): Promise<AuthUser> {
     const token = await verifyIdToken(m[1]!);
     return { uid: token.uid, email: token.email || null };
   } catch (error: any) {
+    // Dev-mode bypass: if token verification fails in dev, fall back to test user
+    if (process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS === "true") {
+      return { uid: "dev-test-user", email: "dev@test.local" };
+    }
     if (process.env.NODE_ENV !== "production") {
       console.error(
         "[auth-server] Token verification failed:",

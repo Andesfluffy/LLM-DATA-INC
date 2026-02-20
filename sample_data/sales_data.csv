@@ -1,0 +1,31 @@
+date,product,category,quantity,unit_price,total_revenue,customer_name,region,payment_method
+2025-01-05,Widget Pro,Electronics,3,49.99,149.97,Alice Johnson,North,Credit Card
+2025-01-07,Gadget Mini,Electronics,1,29.99,29.99,Bob Smith,South,PayPal
+2025-01-10,Office Chair,Furniture,2,199.99,399.98,Carol Davis,East,Credit Card
+2025-01-12,Widget Pro,Electronics,5,49.99,249.95,David Lee,West,Debit Card
+2025-01-15,Desk Lamp,Furniture,4,34.99,139.96,Eva Martinez,North,Credit Card
+2025-01-18,Gadget Mini,Electronics,2,29.99,59.98,Frank Wilson,South,PayPal
+2025-01-20,Widget Pro,Electronics,1,49.99,49.99,Grace Brown,East,Credit Card
+2025-01-22,Standing Desk,Furniture,1,549.99,549.99,Henry Taylor,West,Credit Card
+2025-01-25,USB Hub,Electronics,10,14.99,149.90,Irene Anderson,North,Debit Card
+2025-01-28,Office Chair,Furniture,3,199.99,599.97,Jack Thomas,South,Credit Card
+2025-02-01,Widget Pro,Electronics,2,49.99,99.98,Kate Jackson,East,PayPal
+2025-02-03,Desk Lamp,Furniture,6,34.99,209.94,Leo White,West,Credit Card
+2025-02-05,Gadget Mini,Electronics,4,29.99,119.96,Maria Harris,North,Debit Card
+2025-02-08,Standing Desk,Furniture,2,549.99,1099.98,Noah Clark,South,Credit Card
+2025-02-10,USB Hub,Electronics,8,14.99,119.92,Olivia Lewis,East,PayPal
+2025-02-12,Widget Pro,Electronics,7,49.99,349.93,Paul Robinson,West,Credit Card
+2025-02-15,Office Chair,Furniture,1,199.99,199.99,Quinn Walker,North,Credit Card
+2025-02-18,Gadget Mini,Electronics,3,29.99,89.97,Rachel Hall,South,Debit Card
+2025-02-20,Desk Lamp,Furniture,5,34.99,174.95,Samuel Allen,East,Credit Card
+2025-02-22,Standing Desk,Furniture,1,549.99,549.99,Tina Young,West,PayPal
+2025-02-25,USB Hub,Electronics,15,14.99,224.85,Victor King,North,Credit Card
+2025-03-01,Widget Pro,Electronics,4,49.99,199.96,Wendy Wright,South,Credit Card
+2025-03-03,Office Chair,Furniture,2,199.99,399.98,Xavier Lopez,East,Debit Card
+2025-03-05,Gadget Mini,Electronics,6,29.99,179.94,Yolanda Hill,West,PayPal
+2025-03-08,Desk Lamp,Furniture,3,34.99,104.97,Zachary Scott,North,Credit Card
+2025-03-10,Standing Desk,Furniture,3,549.99,1649.97,Alice Johnson,South,Credit Card
+2025-03-12,Widget Pro,Electronics,8,49.99,399.92,Bob Smith,East,Credit Card
+2025-03-15,USB Hub,Electronics,20,14.99,299.80,Carol Davis,West,Debit Card
+2025-03-18,Office Chair,Furniture,4,199.99,799.96,David Lee,North,PayPal
+2025-03-20,Gadget Mini,Electronics,2,29.99,59.98,Eva Martinez,South,Credit Card

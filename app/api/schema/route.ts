@@ -1,20 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma as appPrisma, getPrismaForUrl } from "@/lib/db";
+import { getPrismaForUrl } from "@/lib/db";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { getDataSourceConnectionUrl } from "@/lib/datasourceSecrets";
-import { ensureUserAndOrg, findAccessibleDataSource } from "@/lib/userOrg";
+import { ensureUser, findAccessibleDataSource } from "@/lib/userOrg";
 import { z } from "zod";
 
 export async function GET(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const search = Object.fromEntries(req.nextUrl.searchParams.entries());
-  const Query = z.object({ orgId: z.string().min(1), datasourceId: z.string().min(1) });
+  const Query = z.object({ datasourceId: z.string().min(1) });
   const parsed = Query.safeParse(search);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
-  const { orgId, datasourceId } = parsed.data;
-  const { user: dbUser } = await ensureUserAndOrg(user);
-  const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId, orgId });
+  const { datasourceId } = parsed.data;
+  const { user: dbUser } = await ensureUser(user);
+  const ds = await findAccessibleDataSource({ userId: dbUser.id, datasourceId });
   if (!ds) return NextResponse.json({ error: "DataSource not found" }, { status: 404 });
   let url: string;
   try {

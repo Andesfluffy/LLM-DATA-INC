@@ -1,6 +1,5 @@
 export type DataSourceSummary = {
   id: string;
-  orgId: string | null;
   name: string;
   type: string | null;
   host: string | null;
@@ -10,17 +9,6 @@ export type DataSourceSummary = {
   hasPassword?: boolean;
   createdAt?: string;
   updatedAt?: string;
-  integrationSummary?: Record<string, {
-    platform: string;
-    mode: "api_key" | "oauth";
-    hasSecret: boolean;
-    sync: {
-      status: "idle" | "syncing" | "ok" | "error";
-      error?: string | null;
-      lastSuccessfulSyncAt?: string;
-      lastSyncAttemptAt?: string;
-    };
-  } | null>;
   scopedTables?: string[];
 };
 

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
-import { ensureUserAndOrg } from "@/lib/userOrg";
-import { blockedEntitlementResponse, resolveOrgEntitlements } from "@/lib/entitlements";
+import { ensureUser } from "@/lib/userOrg";
 import { cleanupStaleUploadFiles, deleteManagedUploadFile, extractCsvFilePath } from "@/lib/csvStorage";
 import { replaceDatasourceScope } from "@/lib/datasourceScope";
 import { parse } from "csv-parse/sync";
@@ -149,31 +148,22 @@ function inspectCsv(csvBuffer: Buffer, delimiter: string): { rowCount: number; c
   }
 }
 
-function pickStorageMode(byteLength: number): "inline_base64" | "filesystem" {
-  // On Vercel (serverless), filesystem storage is ephemeral and unreliable.
-  // Always use inline_base64 when running on Vercel.
-  if (process.env.VERCEL) return "inline_base64";
-
-  const configured = (process.env.CSV_STORAGE_MODE || "auto").toLowerCase();
+function pickStorageMode(byteLength: number): "inline_base64" | "r2" | "filesystem" {
   const inlineLimit = Number(process.env.CSV_INLINE_MAX_BYTES || DEFAULT_INLINE_MAX_BYTES);
 
-  if (configured === "inline") return "inline_base64";
-  if (configured === "filesystem") return "filesystem";
+  if (byteLength <= inlineLimit) return "inline_base64";
 
-  // auto: keep small uploads inline; spill larger files to filesystem.
-  return byteLength <= inlineLimit ? "inline_base64" : "filesystem";
+  // Prefer R2 if configured, fall back to filesystem
+  if (process.env.R2_ACCOUNT_ID && process.env.R2_ACCESS_KEY_ID) return "r2";
+
+  return "filesystem";
 }
 
 export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: AUTH_ERROR_MESSAGE }, { status: 401 });
 
-  const { user: dbUser, org } = await ensureUserAndOrg(user);
-  const entitlements = await resolveOrgEntitlements(org.id);
-  if (!entitlements.features.manualCsv) {
-    return NextResponse.json(blockedEntitlementResponse("Manual CSV uploads", entitlements, "free"), { status: 403 });
-  }
-
+  const { user: dbUser } = await ensureUser(user);
 
   const retentionDays = Number(process.env.CSV_UPLOAD_RETENTION_DAYS || DEFAULT_RETENTION_DAYS);
   if (Number.isFinite(retentionDays) && retentionDays > 0) {
@@ -240,11 +230,16 @@ export async function POST(req: NextRequest) {
 
   if (storage === "inline_base64") {
     metadata.csvBase64 = parsed.csvBuffer.toString("base64");
+  } else if (storage === "r2") {
+    const { uploadToR2 } = await import("@/lib/r2");
+    const safeBaseName = baseName.replace(/[^a-zA-Z0-9._-]/g, "_") || "spreadsheet";
+    const key = `csv/${dbUser.id}/${Date.now()}_${safeBaseName}.csv`;
+    metadata.filePath = await uploadToR2(key, parsed.csvBuffer);
   } else {
     const uploadsDir = join(process.cwd(), "uploads");
     mkdirSync(uploadsDir, { recursive: true });
     const safeBaseName = baseName.replace(/[^a-zA-Z0-9._-]/g, "_") || "spreadsheet";
-    const safeFilename = `${org.id}_${Date.now()}_${safeBaseName}.csv`;
+    const safeFilename = `${dbUser.id}_${Date.now()}_${safeBaseName}.csv`;
     const filePath = join("uploads", safeFilename);
     writeFileSync(join(process.cwd(), filePath), parsed.csvBuffer);
     metadata.filePath = filePath;
@@ -252,7 +247,6 @@ export async function POST(req: NextRequest) {
 
   const existing = await prisma.dataSource.findFirst({
     where: {
-      orgId: org.id,
       ownerId: dbUser.id,
       type: "csv",
       name,
@@ -260,18 +254,6 @@ export async function POST(req: NextRequest) {
   });
 
   const previousFilePath = extractCsvFilePath(existing?.metadata);
-
-  const maxSources = typeof entitlements.limits.maxSources === "number" ? entitlements.limits.maxSources : null;
-  const countFn = (prisma.dataSource as any).count;
-  if (!existing && maxSources && typeof countFn === "function") {
-    const sourceCount = await countFn({ where: { orgId: org.id } });
-    if (sourceCount >= maxSources) {
-      return NextResponse.json(
-        blockedEntitlementResponse("Additional data sources", entitlements, "pro"),
-        { status: 403 },
-      );
-    }
-  }
 
   const ds = existing
     ? await prisma.dataSource.update({
@@ -283,7 +265,6 @@ export async function POST(req: NextRequest) {
       })
     : await prisma.dataSource.create({
         data: {
-          orgId: org.id,
           ownerId: dbUser.id,
           name,
           type: "csv",
@@ -293,10 +274,10 @@ export async function POST(req: NextRequest) {
 
   await replaceDatasourceScope(ds.id, [tableName]);
 
-  // Best-effort cleanup when replacing an existing filesystem-backed spreadsheet.
+  // Best-effort cleanup when replacing an existing filesystem/R2-backed spreadsheet.
   if (previousFilePath && previousFilePath !== metadata.filePath) {
-    deleteManagedUploadFile(previousFilePath);
+    await deleteManagedUploadFile(previousFilePath);
   }
 
-  return NextResponse.json({ id: ds.id, orgId: ds.orgId, name: ds.name, sheetName: parsed.sourceSheet || null });
+  return NextResponse.json({ id: ds.id, name: ds.name, sheetName: parsed.sourceSheet || null });
 }
