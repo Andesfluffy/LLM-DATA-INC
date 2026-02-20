@@ -171,7 +171,9 @@ class CsvClient implements ConnectorClient {
   private async ensureDb() {
     if (this.db) return this.db;
 
-    const initSqlJs = (await import("sql.js")).default;
+    // Use the ASM.js build so we don't need the .wasm file
+    // (the WASM file isn't bundled in Vercel serverless functions)
+    const initSqlJs = (await import("sql.js/dist/sql-asm.js")).default;
     const SQL = await initSqlJs();
     this.db = new SQL.Database();
 
