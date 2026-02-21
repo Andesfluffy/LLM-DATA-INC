@@ -158,6 +158,20 @@ function AppShellInner({ children }: AppShellProps) {
                   </Link>
                 </li>
               </ul>
+
+              <h4 className="mt-8 mb-4 text-[11px] font-semibold uppercase tracking-[0.18em] text-grape-500">
+                Legal
+              </h4>
+              <ul className="space-y-2.5">
+                <li>
+                  <Link
+                    href="/privacy"
+                    className="text-sm text-grape-400 transition hover:text-white"
+                  >
+                    Privacy Policy
+                  </Link>
+                </li>
+              </ul>
             </div>
           </div>
 
@@ -165,9 +179,14 @@ function AppShellInner({ children }: AppShellProps) {
             <p className="text-xs text-grape-500">
               &copy; {new Date().getFullYear()} Data Vista. All rights reserved.
             </p>
-            <p className="text-[11px] text-grape-500/70">
-              Enterprise-grade analytics powered by AI
-            </p>
+            <div className="flex items-center gap-5">
+              <Link href="/privacy" className="text-[11px] text-grape-500/70 transition hover:text-grape-300">
+                Privacy Policy
+              </Link>
+              <span className="text-[11px] text-grape-500/70">
+                Enterprise-grade analytics powered by AI
+              </span>
+            </div>
           </div>
         </div>
       </footer>
