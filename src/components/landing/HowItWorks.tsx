@@ -11,26 +11,26 @@ export default function HowItWorks({ brandName = DEFAULT_BRAND }: HowItWorksProp
     {
       icon: Database,
       title: "Connect",
-      desc: `Add a read-only data source in Settings so ${brandName} can explore your schema safely.`,
+      desc: `Link your database to ${brandName} in minutes. No IT ticket, no engineering work — just a connection string.`,
     },
     {
       icon: MessageSquare,
       title: "Ask",
-      desc: "Type questions in plain English. Guardrails keep generated SQL safe and reviewable.",
+      desc: "Type any business question in plain English. Get instant answers, trends, and projections — no SQL knowledge needed.",
     },
     {
       icon: CheckCircle2,
-      title: "Review",
-      desc: "Get instant results and charts, export a CSV, and inspect the SQL before sharing.",
+      title: "Act",
+      desc: "Get real-time charts and forecasts, export results, share with your team, and make faster, better decisions.",
     },
   ];
 
   return (
     <section className="relative">
       <div className="text-center mb-10">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-grape-400 mb-3">Simple workflow</p>
+        <p className="text-[11px] uppercase tracking-[0.2em] text-grape-400 mb-3">How it works</p>
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-[-0.02em]">
-          Three steps to insight
+          Connected to insights in minutes
         </h2>
       </div>
 

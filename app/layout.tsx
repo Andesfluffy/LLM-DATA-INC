@@ -52,12 +52,12 @@ export default function RootLayout({ children }: RootLayoutProps) {
 export const metadata: Metadata = {
   title: "Data Vista",
   description:
-    "Intelligent Data Insights Platform. Ask questions, get instant analytics, and safe SQL.",
+    "Real-time business insights from your data. Ask any question in plain English — get instant answers, forecasts, and trends. No SQL, no analyst needed.",
   metadataBase,
   openGraph: {
     title: "Data Vista",
     description:
-      "Intelligent Data Insights Platform. Ask questions, get instant analytics, and safe SQL.",
+      "Real-time business insights from your data. Ask any question in plain English — get instant answers, forecasts, and trends. No SQL, no analyst needed.",
     url: siteUrl,
     siteName: "Data Vista",
     images: [{ url: "/og.svg", width: 1200, height: 630, alt: "Data Vista" }],

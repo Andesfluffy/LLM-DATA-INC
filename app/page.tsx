@@ -262,12 +262,12 @@ export default function HomePage() {
               {/* Ask Section */}
               <section id="ask" className="scroll-mt-24 space-y-6">
                 <div className="text-center mb-2">
-                  <p className="text-[11px] uppercase tracking-[0.2em] text-grape-400 mb-3">Your data, your way</p>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-grape-400 mb-3">Real-time intelligence</p>
                   <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-[-0.02em]">
-                    Ask any question about your data
+                    What do you want to know?
                   </h2>
                   <p className="text-sm text-grape-300 mt-2 max-w-md mx-auto">
-                    Just type what you want to know in plain English. No technical skills required.
+                    Ask any business question in plain English — get instant insights, trends, and projections from your live data.
                   </p>
                 </div>
 
@@ -280,12 +280,12 @@ export default function HomePage() {
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-white">
-                            {hasDatasource ? "Ask a question about your data" : "Connect your data to get started"}
+                            {hasDatasource ? "Ask anything about your business" : "Connect your data to get started"}
                           </p>
                           {hasDatasource ? (
-                            <p className="text-xs text-grape-400 mt-0.5">Type in plain English - no coding needed</p>
+                            <p className="text-xs text-grape-400 mt-0.5">Insights, trends, forecasts — just ask in plain English</p>
                           ) : (
-                            <p className="text-xs text-grape-400 mt-0.5">Connect a database or upload a spreadsheet first</p>
+                            <p className="text-xs text-grape-400 mt-0.5">Connect a database or upload a spreadsheet to begin</p>
                           )}
                         </div>
                       </div>
@@ -303,9 +303,9 @@ export default function HomePage() {
                   <div className="mx-auto mb-4 h-14 w-14 rounded-full bg-white/[0.04] flex items-center justify-center">
                     <Database className="h-6 w-6 text-grape-400" />
                   </div>
-                  <p className="font-semibold text-lg text-white mb-1">No data connected yet</p>
+                  <p className="font-semibold text-lg text-white mb-1">Connect your data to get started</p>
                   <p className="text-sm text-grape-400 mb-5 max-w-sm mx-auto">
-                    Connect your database or upload a spreadsheet to start asking questions.
+                    Link your database and start getting real-time insights, forecasts, and answers instantly.
                   </p>
                   <Button
                     variant="primary"
@@ -315,7 +315,7 @@ export default function HomePage() {
                     Connect a Database
                   </Button>
                   <div className="mt-5 flex flex-wrap gap-2 justify-center">
-                    {["What were total sales last month?", "Show me top customers", "Revenue by region"].map((ex) => (
+                    {["What were total sales last month?", "Project next quarter revenue", "Which customers are at risk of churning?"].map((ex) => (
                       <span key={ex} className="px-2.5 py-1 rounded-full border border-white/[0.06] bg-white/[0.02] text-grape-400 text-xs">
                         {ex}
                       </span>
@@ -385,7 +385,7 @@ export default function HomePage() {
                 <div className="mt-3 flex items-center gap-3 rounded-lg border border-white/[0.08] bg-white/[0.02] px-4 py-3">
                   <Loader2 className="h-4 w-4 text-grape-300 animate-spin shrink-0" />
                   <p className="text-sm text-grape-200" aria-live="polite">
-                    Understanding your question and finding the answer... This usually takes a few seconds.
+                    Analyzing your data and generating insights... This usually takes a few seconds.
                   </p>
                 </div>
               )}
@@ -453,7 +453,7 @@ export default function HomePage() {
                         <ResultsTable fields={result.fields} rows={result.rows} />
                       )
                     ) : (
-                      <EmptyState title="No results yet" message="Ask a question above and your answer will appear here." />
+                      <EmptyState title="No results yet" message="Ask a business question above — insights, trends, and projections will appear here." />
                     )}
                     {hasRows && (
                       <div className="mt-4">

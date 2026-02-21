@@ -51,24 +51,24 @@ export default function MosaicHero() {
           <div className="max-w-4xl mx-auto text-center">
             <div className="animate-fade-in-up inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-4 py-1.5 text-[11px] uppercase tracking-[0.2em] text-grape-300 mb-8 backdrop-blur-sm">
               <span className="h-1.5 w-1.5 rounded-full bg-white/60 animate-pulse" />
-              Data Vista Platform
+              Real-Time Business Intelligence
             </div>
 
             <h1
               className="animate-fade-in-up text-[2.5rem] sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-[-0.04em] text-white leading-[1.06]"
               style={{ animationDelay: "100ms" }}
             >
-              Ask in English.
+              Stop guessing.
               <br />
-              <span className="gradient-text">Get answers instantly.</span>
+              <span className="gradient-text">Start knowing.</span>
             </h1>
 
             <p
               className="animate-fade-in-up mt-6 text-grape-400 max-w-xl mx-auto text-base sm:text-lg leading-relaxed"
               style={{ animationDelay: "200ms" }}
             >
-              Convert natural language into safe, audit-ready SQL. Get charts,
-              tables, and CSV exports on demand. No SQL expertise required.
+              Connect your database and get instant business insights, forecasts,
+              and answers — in plain English. No analyst, no SQL, no waiting.
             </p>
 
             <div
@@ -99,9 +99,9 @@ export default function MosaicHero() {
               style={{ animationDelay: "400ms" }}
             >
               {[
-                { icon: Shield, text: "SELECT-only guardrails" },
-                { icon: Zap, text: "Sub-second schema cache" },
-                { icon: BarChart3, text: "Auto charts & CSV" },
+                { icon: Zap, text: "Real-time insights" },
+                { icon: BarChart3, text: "Forecasts & projections" },
+                { icon: Shield, text: "No SQL needed" },
               ].map(({ icon: Icon, text }) => (
                 <span
                   key={text}

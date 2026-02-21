@@ -1,4 +1,4 @@
-import { ShieldCheck, BrainCircuit, BarChart3, FileText } from "lucide-react";
+import { TrendingUp, Users, RefreshCw, BarChart3 } from "lucide-react";
 
 type FeatureGridProps = {
   brandName?: string;
@@ -9,33 +9,33 @@ const DEFAULT_BRAND = "Data Vista";
 export default function FeatureGrid({ brandName = DEFAULT_BRAND }: FeatureGridProps) {
   const features = [
     {
-      icon: ShieldCheck,
-      title: "Enterprise Guardrails",
-      desc: `${brandName} enforces SELECT-only access, single-statement execution, and LIMIT controls by default.`,
-    },
-    {
-      icon: BrainCircuit,
-      title: "Schema-Aware NL-to-SQL",
-      desc: "LLM prompts include compact schema summaries so generated queries stay accurate.",
-    },
-    {
       icon: BarChart3,
-      title: "Charts & CSV Export",
-      desc: "Automatically render line or bar charts for time and categorical data, and export CSV in one click.",
+      title: "Instant Business Insights",
+      desc: "Ask any business question and get answers in seconds — charts, trends, and summaries pulled live from your data.",
     },
     {
-      icon: FileText,
-      title: "Audit Logging",
-      desc: "Track prompts, SQL text, timings, and row counts for every run to maintain a full audit trail.",
+      icon: TrendingUp,
+      title: "Forecasts & Projections",
+      desc: "Go beyond what happened. Spot trends, project future performance, and make decisions ahead of the curve.",
+    },
+    {
+      icon: Users,
+      title: "Built for Everyone",
+      desc: `${brandName} works for CFOs, ops managers, and analysts alike. No SQL knowledge, no coding — just ask in plain English.`,
+    },
+    {
+      icon: RefreshCw,
+      title: "Replaces Manual Reporting",
+      desc: "Stop copy-pasting spreadsheets. Automate recurring reports and free your team to focus on decisions, not data wrangling.",
     },
   ];
 
   return (
     <section>
       <div className="text-center mb-10">
-        <p className="text-[11px] uppercase tracking-[0.2em] text-grape-400 mb-3">Why teams choose us</p>
+        <p className="text-[11px] uppercase tracking-[0.2em] text-grape-400 mb-3">Why businesses choose us</p>
         <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-[-0.02em]">
-          Built for security.<br className="hidden sm:inline" /> Designed for speed.
+          Everything you need.<br className="hidden sm:inline" /> Nothing you don&apos;t.
         </h2>
       </div>
 
