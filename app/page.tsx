@@ -17,6 +17,7 @@ import MosaicHero from "@/src/components/landing/MosaicHero";
 import QueryInput from "@/src/components/QueryInput";
 import QueryBuilder from "@/src/components/QueryBuilder";
 
+import DeepAnalysisPanel from "@/src/components/DeepAnalysisPanel";
 import InsightPanel from "@/src/components/InsightPanel";
 import ResultsChart from "@/src/components/ResultsChart";
 import ResultsTable from "@/src/components/ResultsTable";
@@ -47,6 +48,7 @@ export default function HomePage() {
   }, [user]);
 
   const [result, setResult] = useState<QueryResult | null>(null);
+  const [analysisContext, setAnalysisContext] = useState<{ question: string; datasourceId: string } | null>(null);
   const [lastQuestion, setLastQuestion] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -181,9 +183,16 @@ export default function HomePage() {
           throw new Error(message);
         }
 
-        setResult(payload);
-        addTurn(prompt, payload.sql);
-        toast.success("Query ran successfully");
+        if (payload.analysisMode) {
+          setResult(null);
+          setAnalysisContext({ question: prompt, datasourceId });
+          toast.success("Switching to deep analysis mode");
+        } else {
+          setAnalysisContext(null);
+          setResult(payload);
+          addTurn(prompt, payload.sql);
+          toast.success("Query ran successfully");
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         setError(message);
@@ -366,6 +375,7 @@ export default function HomePage() {
                         onClick={() => {
                           clearThread();
                           setResult(null);
+                          setAnalysisContext(null);
                           setError(null);
                           setLastQuestion("");
                         }}
@@ -503,8 +513,16 @@ export default function HomePage() {
                   </div>
                 )}
 
-                {/* AI Insights */}
-                {hasRows && result && (
+                {/* Deep Analysis (predictive / prescriptive questions) */}
+                {analysisContext && (
+                  <DeepAnalysisPanel
+                    question={analysisContext.question}
+                    datasourceId={analysisContext.datasourceId}
+                  />
+                )}
+
+                {/* AI Insights (standard data queries) */}
+                {hasRows && result && !analysisContext && (
                   <InsightPanel
                     question={lastQuestion}
                     sql={result.sql}

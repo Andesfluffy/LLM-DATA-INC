@@ -10,6 +10,7 @@ import { ensureUser, findAccessibleDataSource } from "@/lib/userOrg";
 import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { logAuditEvent } from "@/lib/auditLog";
 import { nlToSql } from "@/src/server/generateSql";
+import { isAnalyticalQuestion } from "@/lib/deepAnalysis";
 import "@/lib/connectors/init";
 
 const HistoryTurn = z.object({ question: z.string().max(500), sql: z.string().max(2000) });
@@ -55,6 +56,11 @@ export async function POST(req: NextRequest) {
     }
     const schemaKey = `${ds.id}:${ds.type}`;
     const schema = await client.getSchema({ cacheKey: schemaKey, allowedTables: scopedTables });
+
+    // Analytical path: question requires reasoning, predictions, or recommendations — not a SQL result.
+    if (isAnalyticalQuestion(question)) {
+      return NextResponse.json({ analysisMode: true });
+    }
 
     // Non-technical path: return a direct schema overview.
     if (isDatasetOverviewQuestion(question)) {
