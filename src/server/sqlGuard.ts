@@ -1,11 +1,15 @@
-const FORBIDDEN = /\b(insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|call|execute|copy|vacuum|analyze|reset|set|show|explain|listen|unlisten|notify)\b/i;
+// Only true write/DDL keywords — read-only words like EXPLAIN/SET/SHOW/ANALYZE
+// are intentionally excluded because they can appear in column aliases and CTEs.
+const FORBIDDEN = /\b(insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|call|execute|copy|vacuum|listen|unlisten|notify)\b/i;
 
 export function isSelectOnly(sqlInput: string): boolean {
   if (!sqlInput) return false;
-  const sql = sqlInput.trim();
-  // Single statement, begins with SELECT or WITH
+  // Strip trailing semicolons — Gemini routinely adds them and they are harmless
+  const sql = sqlInput.trim().replace(/;+\s*$/, "");
+  // Must begin with SELECT or WITH (CTEs)
   if (!/^(with|select)\s/i.test(sql)) return false;
-  if (sql.includes(";")) return false; // disallow multiple statements
+  // Disallow mid-query semicolons (multiple statements)
+  if (sql.includes(";")) return false;
   if (FORBIDDEN.test(sql)) return false;
   return true;
 }

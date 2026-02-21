@@ -1,6 +1,6 @@
 import { genAI } from "@/lib/gemini";
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 type ConversationTurn = {
   question: string;
@@ -23,9 +23,11 @@ export async function nlToSql({ question, schema, orgContext, dialect, conversat
 
   const offTopicInstruction = `If the question cannot be answered from the schema (references tables, fields, or topics that do not exist in the schema), respond with exactly: OFFTOPIC: <one-sentence reason>. Otherwise, output SQL only.`;
 
+  const baseInstruction = `Convert English to a single, safe ${dbName} SELECT using only the SCHEMA provided. Rules: (1) Output raw SQL only — no markdown, no code fences, no trailing semicolon, no EXPLAIN prefix. (2) Never use INSERT/UPDATE/DELETE/DROP/ALTER/CREATE/TRUNCATE or any DDL. (3) Prefer explicit column names over SELECT *. (4) ${offTopicInstruction}`;
+
   const systemInstruction = hasHistory
-    ? `Convert English to a single, safe ${dbName} SELECT using only the SCHEMA. No INSERT/UPDATE/DELETE/DDL. Prefer explicit columns. ${offTopicInstruction} If CONVERSATION HISTORY is provided, treat the new QUESTION as a follow-up — reuse or adapt the previous SQL pattern based on the user's intent.`
-    : `Convert English to a single, safe ${dbName} SELECT using only the SCHEMA. No INSERT/UPDATE/DELETE/DDL. Prefer explicit columns. ${offTopicInstruction}`;
+    ? `${baseInstruction} If CONVERSATION HISTORY is provided, treat the new QUESTION as a follow-up — reuse or adapt the previous SQL pattern based on the user's intent.`
+    : baseInstruction;
 
   let userContent = `SCHEMA:\n${schema}\n\n`;
 
@@ -53,5 +55,9 @@ export async function nlToSql({ question, schema, orgContext, dialect, conversat
   let sql = result.response.text().trim();
   // Strip markdown code fences that Gemini sometimes wraps around SQL
   sql = sql.replace(/^```(?:sql)?\s*\n?/i, "").replace(/\n?```\s*$/, "").trim();
+  // Strip trailing semicolons (Gemini often adds them; they break the safety check)
+  sql = sql.replace(/;+\s*$/, "");
+  // Strip EXPLAIN / EXPLAIN ANALYZE prefix that Gemini occasionally emits
+  sql = sql.replace(/^explain\s+(?:analyze\s+)?/i, "").trim();
   return sql;
 }

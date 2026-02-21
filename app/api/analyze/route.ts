@@ -11,7 +11,7 @@ import { logAuditEvent } from "@/lib/auditLog";
 import "@/lib/connectors/init";
 import { z } from "zod";
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 export type ChartConfig = {
   type: "bar" | "bar-horizontal" | "line" | "area" | "pie" | "number";
