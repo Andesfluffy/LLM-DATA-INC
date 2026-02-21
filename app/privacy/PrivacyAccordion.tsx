@@ -442,7 +442,7 @@ function buildSections(contactEmail: string): Section[] {
           <p>When we make material changes, we will:</p>
           <Ul
             items={[
-              "Update the "Effective date" at the top of this page",
+              'Update the \u201cEffective date\u201d at the top of this page',
               "Display a prominent notice within the platform for at least 14 days",
               "Send an email notification to registered users where required by law",
             ]}
