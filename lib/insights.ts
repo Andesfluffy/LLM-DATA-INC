@@ -1,4 +1,4 @@
-import { openaiClient, pickModel } from "@/lib/openai";
+import { genAI, pickModel } from "@/lib/gemini";
 
 export type InsightParams = {
   question: string;
@@ -59,17 +59,17 @@ SQL: ${params.sql}
 Data (${totalRows} total rows${totalRows > MAX_ROWS ? `, showing first ${MAX_ROWS}` : ""}):
 ${data}`;
 
-  const resp = await openaiClient.chat.completions.create({
+  const model = genAI.getGenerativeModel({
     model: pickModel(),
-    temperature: 0.2,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userMsg },
-    ],
+    systemInstruction: SYSTEM_PROMPT,
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.2,
+    },
   });
 
-  const raw = resp.choices?.[0]?.message?.content || "{}";
+  const result = await model.generateContent(userMsg);
+  const raw = result.response.text() || "{}";
   try {
     const parsed = JSON.parse(raw);
     return {
@@ -93,18 +93,15 @@ ${data}
 
 Provide a concise, insightful analysis directly answering the question. Include specific numbers. Highlight key trends and actionable observations. Use plain English, not JSON.`;
 
-  const stream = await openaiClient.chat.completions.create({
+  const model = genAI.getGenerativeModel({
     model: pickModel(),
-    temperature: 0.2,
-    stream: true,
-    messages: [
-      { role: "system", content: "You are a data analyst. Provide clear, concise insights from query results. Lead with the direct answer, then add 2-3 key observations. Use specific numbers." },
-      { role: "user", content: userMsg },
-    ],
+    systemInstruction: "You are a data analyst. Provide clear, concise insights from query results. Lead with the direct answer, then add 2-3 key observations. Use specific numbers.",
+    generationConfig: { temperature: 0.2 },
   });
 
-  for await (const chunk of stream) {
-    const text = chunk.choices?.[0]?.delta?.content;
+  const stream = await model.generateContentStream(userMsg);
+  for await (const chunk of stream.stream) {
+    const text = chunk.text();
     if (text) yield text;
   }
 }
