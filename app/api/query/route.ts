@@ -90,6 +90,15 @@ export async function POST(req: NextRequest) {
       nlCache.set(cacheKey, { sql: sqlRaw, expiresAt: Date.now() + 30_000 });
     }
 
+    // Off-topic: nlToSql signals the question doesn't match the schema
+    if (sqlRaw.startsWith("OFFTOPIC:")) {
+      const reason = sqlRaw.slice("OFFTOPIC:".length).trim();
+      return NextResponse.json(
+        { error: `That question isn't covered by your connected data. ${reason}` },
+        { status: 400 }
+      );
+    }
+
     if (!guards.isSelectOnly(sqlRaw)) {
       return NextResponse.json(
         {
@@ -122,17 +131,20 @@ export async function POST(req: NextRequest) {
   } catch (e: any) {
     const msg = String(e?.message || e);
     console.error("[query] Error for datasource", datasourceId, ":", msg, e?.stack || "");
-    const isTimeout = /statement timeout|canceling statement|max_execution_time/i.test(msg);
-    const isConnection = /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|connection refused|connect ECONNREFUSED/i.test(msg);
-    const isSyntax = /syntax error|column .* does not exist|relation .* does not exist|undefined column|no such column|no such table|near ".*?": /i.test(msg);
+    const isTimeout = /statement timeout|canceling statement|max_execution_time|timed? ?out/i.test(msg);
+    const isConnection = /ECONNREFUSED|ENOTFOUND|ENOENT|ETIMEDOUT|connection refused|connect ECONNREFUSED|no such file or directory/i.test(msg);
+    const isSyntax = /syntax error|column .* does not exist|relation .* does not exist|undefined column|no such column|no such table|near ".*?": |sqlite_error|table .* not found/i.test(msg);
+    const isAiService = /401|403|429|rate.?limit|quota.*exceeded|insufficient_quota|openai|api.?key|authentication/i.test(msg);
 
     let friendlyMsg: string;
     if (isTimeout) {
       friendlyMsg = "Your question required a query that took too long to run. Try asking something more specific or narrowing the date range.";
+    } else if (isAiService) {
+      friendlyMsg = "The AI service is temporarily unavailable or the API key needs to be checked. Please try again in a moment.";
     } else if (isConnection) {
-      friendlyMsg = "We could not reach your database. Please check that your data source is configured correctly in Settings.";
+      friendlyMsg = "We could not reach your data source. Please check that it is configured correctly in Settings.";
     } else if (isSyntax) {
-      friendlyMsg = "The AI generated a query that did not work with your database. Try rephrasing your question with different wording.";
+      friendlyMsg = "The AI generated a query that did not work with your data. Try rephrasing your question with different wording.";
     } else {
       friendlyMsg = "Something went wrong while running your query. Try rephrasing your question, or check your data source settings.";
     }
