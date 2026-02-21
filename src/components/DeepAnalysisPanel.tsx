@@ -42,7 +42,7 @@ function MarkdownLine({ line }: { line: string }) {
   if (numMatch) {
     return (
       <li className="ml-4 text-sm text-slate-300 leading-relaxed list-decimal">
-        <InlineMarkdown text={numMatch[2]} />
+        <InlineMarkdown text={numMatch[2] ?? ""} />
       </li>
     );
   }
