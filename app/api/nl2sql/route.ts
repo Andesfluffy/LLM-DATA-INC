@@ -50,6 +50,15 @@ export async function POST(req: NextRequest) {
       dialect: factory.dialect,
     });
 
+    // Off-topic detection: LLM signals the question doesn't match the schema
+    if (generated.startsWith("OFFTOPIC:")) {
+      const reason = generated.slice("OFFTOPIC:".length).trim();
+      await appPrisma.queryAudit.create({
+        data: { userId: dbUser.id, dataSourceId: ds.id, nlQuery: prompt, status: "off_topic", durationMs: Date.now() - t0 },
+      });
+      return NextResponse.json({ offTopic: true, reason });
+    }
+
     if (!guards.isSelectOnly(generated)) {
       await appPrisma.queryAudit.create({
         data: { userId: dbUser.id, nlQuery: prompt, generatedSql: generated, status: "rejected_not_select", durationMs: Date.now() - t0 },

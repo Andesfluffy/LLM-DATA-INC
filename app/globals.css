@@ -128,3 +128,39 @@
     background: #000000;
   }
 }
+
+/* ── Print / PDF export ── */
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm 15mm 18mm 15mm;
+  }
+
+  /* Hide everything interactive */
+  .no-print { display: none !important; }
+
+  /* Show only the print report */
+  .print-only {
+    display: block !important;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 13px;
+  }
+
+  /* Recharts SVG colours → light theme */
+  .recharts-cartesian-axis-tick-value,
+  .recharts-legend-item-text {
+    fill: #374151 !important;
+    color: #374151 !important;
+  }
+
+  .recharts-cartesian-grid line { stroke: #d1d5db !important; }
+  .recharts-reference-line line { stroke: #9ca3af !important; }
+  .recharts-tooltip-wrapper        { display: none !important; }
+
+  /* Prevent chart/table from splitting across pages */
+  .print-keep-together { break-inside: avoid; page-break-inside: avoid; }
+}

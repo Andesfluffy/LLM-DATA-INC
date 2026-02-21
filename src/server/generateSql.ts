@@ -22,9 +22,11 @@ export async function nlToSql({ question, schema, orgContext, dialect, conversat
 
   const hasHistory = conversationHistory && conversationHistory.length > 0;
 
+  const offTopicInstruction = `If the question cannot be answered from the schema (references tables, fields, or topics that do not exist in the schema), respond with exactly: OFFTOPIC: <one-sentence reason>. Otherwise, output SQL only.`;
+
   const system = hasHistory
-    ? `Convert English to a single, safe ${dbName} SELECT using only the SCHEMA. No INSERT/UPDATE/DELETE/DDL. Prefer explicit columns. Output SQL only. If CONVERSATION HISTORY is provided, treat the new QUESTION as a follow-up — reuse or adapt the previous SQL pattern based on the user's intent.`
-    : `Convert English to a single, safe ${dbName} SELECT using only the SCHEMA. No INSERT/UPDATE/DELETE/DDL. Prefer explicit columns. Output SQL only.`;
+    ? `Convert English to a single, safe ${dbName} SELECT using only the SCHEMA. No INSERT/UPDATE/DELETE/DDL. Prefer explicit columns. ${offTopicInstruction} If CONVERSATION HISTORY is provided, treat the new QUESTION as a follow-up — reuse or adapt the previous SQL pattern based on the user's intent.`
+    : `Convert English to a single, safe ${dbName} SELECT using only the SCHEMA. No INSERT/UPDATE/DELETE/DDL. Prefer explicit columns. ${offTopicInstruction}`;
 
   let userContent = `SCHEMA:\n${schema}\n\n`;
 
