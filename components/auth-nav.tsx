@@ -110,16 +110,6 @@ export default function AuthNav() {
               </div>
               <div className="mt-4 space-y-2 text-xs text-grape-300">
                 <Link
-                  href="/history"
-                  className="flex items-center justify-between rounded-lg border border-transparent bg-white/[0.03] px-3 py-2 transition hover:border-white/[0.1] hover:text-white"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  History
-                  <span className="text-[10px] uppercase tracking-[0.24em] text-grape-500">
-                    H
-                  </span>
-                </Link>
-                <Link
                   href="/settings/datasources"
                   className="flex items-center justify-between rounded-lg border border-transparent bg-white/[0.03] px-3 py-2 transition hover:border-white/[0.1] hover:text-white"
                   onClick={() => setMenuOpen(false)}

@@ -94,7 +94,7 @@ export default function QueryBuilder({ onSubmit }: QueryBuilderProps) {
   }
 
   const selectClasses =
-    "w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-white focus:border-white/[0.15] focus:outline-none focus:ring-1 focus:ring-white/[0.1] transition";
+    "w-full rounded-lg border border-white/[0.10] bg-[#111111] px-3 py-2 text-sm text-white focus:border-white/[0.20] focus:outline-none focus:ring-1 focus:ring-white/[0.1] transition appearance-none cursor-pointer";
 
   return (
     <div className="space-y-5">
@@ -104,26 +104,89 @@ export default function QueryBuilder({ onSubmit }: QueryBuilderProps) {
       </div>
 
       <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-5 space-y-4">
-        {/* Sentence builder */}
-        <div className="flex flex-col gap-2 text-sm text-grape-200 sm:flex-row sm:flex-wrap sm:items-center">
-          <span className="font-medium text-white sm:whitespace-nowrap">Show me</span>
+        {/* On mobile: stacked grid. On sm+: inline sentence builder */}
+        <div className="grid grid-cols-1 gap-3 sm:hidden">
+          <div>
+            <label className="block text-xs text-grape-400 mb-1">Table</label>
+            <select
+              value={selectedTable}
+              onChange={(e) => {
+                setSelectedTable(e.target.value);
+                setSelectedMetric("");
+                setSelectedDimension("");
+                setSelectedTimeFilter("");
+              }}
+              className={selectClasses}
+            >
+              <option value="">Pick a table…</option>
+              {tables.map((t) => (
+                <option key={t.name} value={t.name}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-grape-400 mb-1">Measure</label>
+            <select
+              value={selectedMetric}
+              onChange={(e) => setSelectedMetric(e.target.value)}
+              className={selectClasses}
+              disabled={!selectedTable}
+            >
+              <option value="">What to measure…</option>
+              {metricOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+          {dimensionColumns.length > 0 && (
+            <div>
+              <label className="block text-xs text-grape-400 mb-1">Group by (optional)</label>
+              <select
+                value={selectedDimension}
+                onChange={(e) => setSelectedDimension(e.target.value)}
+                className={selectClasses}
+              >
+                <option value="">None</option>
+                {dimensionColumns.map((c) => (
+                  <option key={c.name} value={c.name}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {temporalColumns.length > 0 && (
+            <div>
+              <label className="block text-xs text-grape-400 mb-1">Time period</label>
+              <select
+                value={selectedTimeFilter}
+                onChange={(e) => setSelectedTimeFilter(e.target.value)}
+                className={selectClasses}
+              >
+                {TIME_FILTERS.map((tf) => (
+                  <option key={tf.value} value={tf.value}>{tf.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
 
-          {/* Metric */}
+        {/* sm+: original inline sentence builder */}
+        <div className="hidden sm:flex flex-wrap items-center gap-2 text-sm text-grape-200">
+          <span className="font-medium text-white whitespace-nowrap">Show me</span>
+
           <select
             value={selectedMetric}
             onChange={(e) => setSelectedMetric(e.target.value)}
-            className={`${selectClasses} w-full sm:w-auto sm:min-w-[180px]`}
+            className={`${selectClasses} min-w-[180px]`}
             disabled={!selectedTable}
           >
-            <option value="">-- what to measure --</option>
+            <option value="">what to measure…</option>
             {metricOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
 
-          <span className="font-medium text-white sm:whitespace-nowrap">from</span>
+          <span className="font-medium text-white whitespace-nowrap">from</span>
 
-          {/* Table */}
           <select
             value={selectedTable}
             onChange={(e) => {
@@ -132,9 +195,9 @@ export default function QueryBuilder({ onSubmit }: QueryBuilderProps) {
               setSelectedDimension("");
               setSelectedTimeFilter("");
             }}
-            className={`${selectClasses} w-full sm:w-auto sm:min-w-[160px]`}
+            className={`${selectClasses} min-w-[160px]`}
           >
-            <option value="">-- pick a table --</option>
+            <option value="">pick a table…</option>
             {tables.map((t) => (
               <option key={t.name} value={t.name}>{t.name}</option>
             ))}
@@ -142,13 +205,13 @@ export default function QueryBuilder({ onSubmit }: QueryBuilderProps) {
 
           {dimensionColumns.length > 0 && (
             <>
-              <span className="font-medium text-white sm:whitespace-nowrap">grouped by</span>
+              <span className="font-medium text-white whitespace-nowrap">grouped by</span>
               <select
                 value={selectedDimension}
                 onChange={(e) => setSelectedDimension(e.target.value)}
-                className={`${selectClasses} w-full sm:w-auto sm:min-w-[160px]`}
+                className={`${selectClasses} min-w-[160px]`}
               >
-                <option value="">-- none (optional) --</option>
+                <option value="">none (optional)</option>
                 {dimensionColumns.map((c) => (
                   <option key={c.name} value={c.name}>{c.name}</option>
                 ))}
@@ -158,11 +221,11 @@ export default function QueryBuilder({ onSubmit }: QueryBuilderProps) {
 
           {temporalColumns.length > 0 && (
             <>
-              <span className="font-medium text-white sm:whitespace-nowrap">for</span>
+              <span className="font-medium text-white whitespace-nowrap">for</span>
               <select
                 value={selectedTimeFilter}
                 onChange={(e) => setSelectedTimeFilter(e.target.value)}
-                className={`${selectClasses} w-full sm:w-auto sm:min-w-[140px]`}
+                className={`${selectClasses} min-w-[140px]`}
               >
                 {TIME_FILTERS.map((tf) => (
                   <option key={tf.value} value={tf.value}>{tf.label}</option>
