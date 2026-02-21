@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { genAI } from "@/lib/gemini";
 import { getUserFromRequest } from "@/lib/auth-server";
 import { ensureUser, findAccessibleDataSource } from "@/lib/userOrg";
 import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
@@ -8,8 +8,7 @@ import "@/lib/connectors/init";
 import { z } from "zod";
 import crypto from "crypto";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
 type SuggestResult = {
   description: string;
@@ -51,23 +50,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(cached.data);
     }
 
-    const resp = await openai.chat.completions.create({
+    const suggestModel = genAI.getGenerativeModel({
       model: MODEL,
-      temperature: 0.3,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: `You are a data assistant helping business users understand what they can query. Given a database schema, write a plain-language summary of what data is available and generate 5 high-quality, specific business questions a user could ask. Respond ONLY with valid JSON in this exact shape: {"description": "...", "suggestions": ["q1", "q2", "q3", "q4", "q5"]}`,
-        },
-        {
-          role: "user",
-          content: `SCHEMA:\n${schema}\n\nWrite a 2-3 sentence plain-language description of this data (mention key topics, not technical column names). Then provide 5 specific, answerable business questions using this data. Questions should be concrete and immediately useful.`,
-        },
-      ],
+      systemInstruction: `You are a data assistant helping business users understand what they can query. Given a database schema, write a plain-language summary of what data is available and generate 5 high-quality, specific business questions a user could ask. Respond ONLY with valid JSON in this exact shape: {"description": "...", "suggestions": ["q1", "q2", "q3", "q4", "q5"]}`,
+      generationConfig: { responseMimeType: "application/json", temperature: 0.3 },
     });
 
-    const content = resp.choices?.[0]?.message?.content ?? "{}";
+    const suggestResult = await suggestModel.generateContent(
+      `SCHEMA:\n${schema}\n\nWrite a 2-3 sentence plain-language description of this data (mention key topics, not technical column names). Then provide 5 specific, answerable business questions using this data. Questions should be concrete and immediately useful.`
+    );
+    const content = suggestResult.response.text() ?? "{}";
     let result: SuggestResult;
     try {
       const parsed = JSON.parse(content) as Partial<SuggestResult>;

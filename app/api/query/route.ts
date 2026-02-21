@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
     const isTimeout = /statement timeout|canceling statement|max_execution_time|timed? ?out/i.test(msg);
     const isConnection = /ECONNREFUSED|ENOTFOUND|ENOENT|ETIMEDOUT|connection refused|connect ECONNREFUSED|no such file or directory/i.test(msg);
     const isSyntax = /syntax error|column .* does not exist|relation .* does not exist|undefined column|no such column|no such table|near ".*?": |sqlite_error|table .* not found/i.test(msg);
-    const isAiService = /401|403|429|rate.?limit|quota.*exceeded|insufficient_quota|openai|api.?key|authentication/i.test(msg);
+    const isAiService = /401|403|429|rate.?limit|quota.*exceeded|insufficient_quota|gemini|api.?key|authentication/i.test(msg);
 
     let friendlyMsg: string;
     if (isTimeout) {

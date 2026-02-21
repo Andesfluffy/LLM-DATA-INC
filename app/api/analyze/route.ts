@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
+import { genAI } from "@/lib/gemini";
 import { prisma as appPrisma } from "@/lib/db";
 import { nlToSql } from "@/src/server/generateSql";
 import { getUserFromRequest } from "@/lib/auth-server";
@@ -11,8 +11,7 @@ import { logAuditEvent } from "@/lib/auditLog";
 import "@/lib/connectors/init";
 import { z } from "zod";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
 export type ChartConfig = {
   type: "bar" | "bar-horizontal" | "line" | "area" | "pie" | "number";
@@ -131,14 +130,9 @@ export async function POST(req: NextRequest) {
       .join("\n");
     const rowsText = `${csvHeader}\n${csvRows}`;
 
-    const analysisResp = await openai.chat.completions.create({
+    const analysisModel = genAI.getGenerativeModel({
       model: MODEL,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: `You are a senior data analyst. Given a user question and query results, provide:
+      systemInstruction: `You are a senior data analyst. Given a user question and query results, provide:
 1. "insight": 2-4 sentence plain-English summary using SPECIFIC numbers from the data. Always name the highest, lowest, and any striking comparisons or trends the question asks about. Be concrete — include actual values.
 2. "chart": the single best visualisation for this answer.
 
@@ -156,15 +150,13 @@ Rules:
 - Default to "bar-horizontal" for geographic/named-entity comparisons (counties, regions, departments)
 
 Respond ONLY with valid JSON: {"insight":"...","chart":{"type":"bar"|"bar-horizontal"|"line"|"area"|"pie"|"number","xKey":"col","yKey":"col","title":"..."}}`,
-        },
-        {
-          role: "user",
-          content: `QUESTION: ${prompt}\n\nRESULTS (${rows.length} total rows${rows.length > 60 ? "; showing first 60" : ""}):\n${rowsText}`,
-        },
-      ],
+      generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
     });
 
-    const raw = analysisResp.choices?.[0]?.message?.content ?? "{}";
+    const analysisResult = await analysisModel.generateContent(
+      `QUESTION: ${prompt}\n\nRESULTS (${rows.length} total rows${rows.length > 60 ? "; showing first 60" : ""}):\n${rowsText}`
+    );
+    const raw = analysisResult.response.text() ?? "{}";
     let chart: ChartConfig | null = null;
     let insight = "Query completed successfully.";
 
