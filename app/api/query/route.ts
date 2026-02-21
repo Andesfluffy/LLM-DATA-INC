@@ -99,10 +99,18 @@ export async function POST(req: NextRequest) {
     // Off-topic: nlToSql signals the question doesn't match the schema
     if (sqlRaw.startsWith("OFFTOPIC:")) {
       const reason = sqlRaw.slice("OFFTOPIC:".length).trim();
-      return NextResponse.json(
-        { error: `That question isn't covered by your connected data. ${reason}` },
-        { status: 400 }
-      );
+      // Extract table names from schema to surface as context for suggestions
+      const tableNames = schema
+        .split("\n")
+        .map((line) => line.trim().split(".")[0])
+        .filter((t): t is string => Boolean(t))
+        .reduce<string[]>((acc, t) => (acc.includes(t) ? acc : [...acc, t]), [])
+        .slice(0, 5);
+      return NextResponse.json({
+        offTopic: true,
+        reason: reason || "This question doesn't appear to match the data in your connected source.",
+        availableTables: tableNames,
+      });
     }
 
     if (!guards.isSelectOnly(sqlRaw)) {

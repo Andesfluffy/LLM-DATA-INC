@@ -1,7 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquare, Code2, Table2, BarChart3, Download, AlertCircle, Loader2, RotateCcw, Database } from "lucide-react";
+import {
+  MessageSquare,
+  Code2,
+  Table2,
+  BarChart3,
+  Download,
+  AlertCircle,
+  Loader2,
+  RotateCcw,
+  Database,
+  FileText,
+  HelpCircle,
+} from "lucide-react";
 import OnboardingWizard from "@/src/components/onboarding/OnboardingWizard";
 import { useConversationThread } from "@/src/hooks/useConversationThread";
 import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
@@ -21,6 +33,7 @@ import DeepAnalysisPanel from "@/src/components/DeepAnalysisPanel";
 import InsightPanel from "@/src/components/InsightPanel";
 import ResultsChart from "@/src/components/ResultsChart";
 import ResultsTable from "@/src/components/ResultsTable";
+import DataSummaryPanel from "@/src/components/DataSummaryPanel";
 import { toast } from "@/src/components/ui/Toast";
 import ConnectDatabaseModal from "@/src/components/ConnectDatabaseModal";
 import { fetchAccessibleDataSources } from "@/src/lib/datasourceClient";
@@ -31,8 +44,19 @@ type QueryResult = {
   rows: Record<string, unknown>[];
 };
 
+type OffTopicPayload = {
+  offTopic: true;
+  reason: string;
+  availableTables: string[];
+};
+
 type ConnectionIds = {
   datasourceId: string;
+};
+
+type ConnectedSource = {
+  id: string;
+  name?: string;
 };
 
 export default function HomePage() {
@@ -51,15 +75,20 @@ export default function HomePage() {
   const [analysisContext, setAnalysisContext] = useState<{ question: string; datasourceId: string } | null>(null);
   const [lastQuestion, setLastQuestion] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [offTopic, setOffTopic] = useState<OffTopicPayload | null>(null);
   const [busy, setBusy] = useState(false);
   const [hasDatasource, setHasDatasource] = useState(false);
-  const [view, setView] = useState<"table" | "chart">("table");
+  const [view, setView] = useState<"table" | "chart">("chart");
   const [showSql, setShowSql] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const { thread, addTurn, clearThread } = useConversationThread();
   const [inputMode, setInputMode] = useState<"text" | "builder">("text");
   const [showConnectModal, setShowConnectModal] = useState(false);
+  // Auto-summary: shown right after connecting a new data source
+  const [justConnected, setJustConnected] = useState<ConnectedSource | null>(null);
+  // Print section ref
+  const printSectionRef = useRef<HTMLDivElement>(null);
 
   const syncFromLocalStorage = useCallback(() => {
     try {
@@ -151,6 +180,7 @@ export default function HomePage() {
       setBusy(true);
       setError(null);
       setResult(null);
+      setOffTopic(null);
       setLastQuestion(prompt);
 
       try {
@@ -178,6 +208,15 @@ export default function HomePage() {
         });
 
         const payload = await response.json();
+
+        // Off-topic: structured response, not an error
+        if (payload.offTopic) {
+          setOffTopic(payload as OffTopicPayload);
+          setResult(null);
+          setAnalysisContext(null);
+          return;
+        }
+
         if (!response.ok) {
           const message = payload?.error || "Request failed";
           throw new Error(message);
@@ -230,6 +269,10 @@ export default function HomePage() {
     URL.revokeObjectURL(url);
   }, [result]);
 
+  const downloadPdf = useCallback(() => {
+    window.print();
+  }, []);
+
   const hasRows = useMemo(() => Boolean(result?.rows && result.rows.length > 0), [result]);
 
   const handleViewChange = useCallback((next: "table" | "chart") => {
@@ -270,7 +313,7 @@ export default function HomePage() {
 
               {/* Ask Section */}
               <section id="ask" className="scroll-mt-24 space-y-6">
-                <div className="text-center mb-2">
+                <div className="text-center mb-2 no-print">
                   <p className="text-[11px] uppercase tracking-[0.2em] text-grape-400 mb-3">Real-time intelligence</p>
                   <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-[-0.02em]">
                     What do you want to know?
@@ -280,7 +323,20 @@ export default function HomePage() {
                   </p>
                 </div>
 
-                <Card>
+                {/* Auto-summary panel — shown right after connecting a new data source */}
+                {justConnected && (
+                  <DataSummaryPanel
+                    datasourceId={justConnected.id}
+                    datasourceName={justConnected.name}
+                    onAsk={(q) => {
+                      setJustConnected(null);
+                      onAsk(q);
+                    }}
+                    onDismiss={() => setJustConnected(null)}
+                  />
+                )}
+
+                <Card className="no-print">
                   <CardBody>
                     <div className="mb-4 flex items-start justify-between gap-2.5">
                       <div className="flex items-start gap-2.5">
@@ -333,8 +389,6 @@ export default function HomePage() {
                 </div>
               )}
 
-{/* Modal moved to root level */}
-
               {/* Input mode toggle */}
               {hasDatasource && (
                 <div className="mb-4 flex flex-wrap items-center gap-1.5">
@@ -376,6 +430,7 @@ export default function HomePage() {
                           clearThread();
                           setResult(null);
                           setAnalysisContext(null);
+                          setOffTopic(null);
                           setError(null);
                           setLastQuestion("");
                         }}
@@ -404,132 +459,197 @@ export default function HomePage() {
                   <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
                   <p role="alert" className="text-sm text-red-300" aria-live="polite">{error}</p>
                 </div>
-                    )}
+              )}
                   </CardBody>
                 </Card>
 
-                {/* Results */}
-                <Card>
-                  <CardBody>
-                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05] text-white">
-                          <Table2 className="h-4 w-4" />
+                {/* Off-topic response — question wasn't relevant to the data */}
+                {offTopic && !busy && (
+                  <Card className="no-print">
+                    <CardBody>
+                      <div className="flex items-start gap-3">
+                        <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
+                          <HelpCircle className="h-4 w-4" />
                         </div>
-                        <p className="text-sm font-semibold text-white">Your Results</p>
-                        {hasRows && result && (
-                          <span className="text-xs text-grape-400 ml-1">
-                            ({result.rows.length} {result.rows.length === 1 ? "row" : "rows"} found)
-                          </span>
-                        )}
-                      </div>
-                  {hasRows && (
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => handleViewChange("table")}
-                            aria-pressed={view === "table"}
-                            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
-                              view === "table"
-                                ? "border-white/[0.15] bg-white/[0.06] text-white shadow-sm"
-                                : "border-white/[0.06] text-grape-400 hover:border-white/[0.1] hover:text-white"
-                            }`}
-                          >
-                            <Table2 className="h-3.5 w-3.5 inline mr-1" />
-                            Table
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleViewChange("chart")}
-                            aria-pressed={view === "chart"}
-                            className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
-                              view === "chart"
-                                ? "border-white/[0.15] bg-white/[0.06] text-white shadow-sm"
-                                : "border-white/[0.06] text-grape-400 hover:border-white/[0.1] hover:text-white"
-                            }`}
-                          >
-                            <BarChart3 className="h-3.5 w-3.5 inline mr-1" />
-                            Chart
-                          </button>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-white mb-1">
+                            That question isn&apos;t in your data
+                          </p>
+                          <p className="text-sm text-slate-300 leading-relaxed mb-3">
+                            {offTopic.reason}
+                          </p>
+                          {offTopic.availableTables.length > 0 && (
+                            <div>
+                              <p className="text-xs text-grape-400 mb-2 uppercase tracking-wide font-medium">
+                                Your data covers
+                              </p>
+                              <div className="flex flex-wrap gap-1.5 mb-3">
+                                {offTopic.availableTables.map((t) => (
+                                  <span
+                                    key={t}
+                                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs text-grape-300"
+                                  >
+                                    {t}
+                                  </span>
+                                ))}
+                              </div>
+                              <p className="text-xs text-grape-500">
+                                Try asking something specific to the tables above, or click &quot;Switch Source&quot; to connect different data.
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      )}
-              </div>
-                    {busy && !result?.rows ? (
-                      <TableSkeleton rows={6} cols={result?.fields?.length || 4} />
-                    ) : hasRows && result ? (
-                      view === "chart" ? (
-                        <ResultsChart fields={result.fields} rows={result.rows} />
-                      ) : (
-                        <ResultsTable fields={result.fields} rows={result.rows} />
-                      )
-                    ) : (
-                      <EmptyState title="No results yet" message="Ask a business question above — insights, trends, and projections will appear here." />
-                    )}
-                    {hasRows && (
-                      <div className="mt-4">
-                        <Button onClick={downloadCsv} variant="secondary" className="w-full sm:w-auto">
-                          <Download className="h-4 w-4" />
-                          Download as Spreadsheet
-                        </Button>
                       </div>
-                    )}
-                  </CardBody>
-                </Card>
+                    </CardBody>
+                  </Card>
+                )}
 
-                {/* SQL (collapsible) */}
-                {(result?.sql || busy) && (
-                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                    <button
-                      type="button"
-                      onClick={() => setShowSql(!showSql)}
-                      className="w-full flex items-center gap-2.5 px-4 sm:px-5 py-3 text-left hover:bg-white/[0.02] transition-colors rounded-xl"
-                    >
-                      <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.04] text-grape-400">
-                        <Code2 className="h-3.5 w-3.5" />
-                      </div>
-                      <p className="text-xs font-medium text-grape-300 flex-1">
-                        {showSql ? "Hide" : "Show"} the database query (advanced)
+                {/* Results — wrapped in print section */}
+                <div ref={printSectionRef} data-print-section>
+
+                  {/* Print-only report header */}
+                  <div className="print-report-header hidden">
+                    <h1>Data Insights Report</h1>
+                    <p>Generated on {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
+                    {lastQuestion && (
+                      <p style={{ marginTop: 6, fontWeight: 600, color: "#111827" }}>
+                        Question: {lastQuestion}
                       </p>
-                      <svg
-                        className={`h-4 w-4 text-grape-400 transition-transform ${showSql ? "rotate-180" : ""}`}
-                        fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {showSql && (
-                      <div className="px-4 sm:px-5 pb-4">
-                        {busy && !result?.sql ? (
-                          <div className="space-y-2">
-                            <Skeleton className="h-4 w-2/3" />
-                            <Skeleton className="h-4 w-1/2" />
-                            <Skeleton className="h-4 w-3/4" />
-                          </div>
-                        ) : result?.sql ? (
-                          <CodeBlock code={result.sql} />
-                        ) : null}
-                      </div>
                     )}
                   </div>
-                )}
 
-                {/* Deep Analysis (predictive / prescriptive questions) */}
-                {analysisContext && (
-                  <DeepAnalysisPanel
-                    question={analysisContext.question}
-                    datasourceId={analysisContext.datasourceId}
-                  />
-                )}
+                  <Card>
+                    <CardBody>
+                      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.05] text-white">
+                            <Table2 className="h-4 w-4" />
+                          </div>
+                          <p className="text-sm font-semibold text-white">Your Results</p>
+                          {hasRows && result && (
+                            <span className="text-xs text-grape-400 ml-1">
+                              ({result.rows.length} {result.rows.length === 1 ? "row" : "rows"} found)
+                            </span>
+                          )}
+                        </div>
+                    {hasRows && (
+                          <div className="flex flex-wrap items-center gap-1.5 no-print">
+                            <button
+                              type="button"
+                              onClick={() => handleViewChange("table")}
+                              aria-pressed={view === "table"}
+                              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+                                view === "table"
+                                  ? "border-white/[0.15] bg-white/[0.06] text-white shadow-sm"
+                                  : "border-white/[0.06] text-grape-400 hover:border-white/[0.1] hover:text-white"
+                              }`}
+                            >
+                              <Table2 className="h-3.5 w-3.5 inline mr-1" />
+                              Table
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleViewChange("chart")}
+                              aria-pressed={view === "chart"}
+                              className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30 ${
+                                view === "chart"
+                                  ? "border-white/[0.15] bg-white/[0.06] text-white shadow-sm"
+                                  : "border-white/[0.06] text-grape-400 hover:border-white/[0.1] hover:text-white"
+                              }`}
+                            >
+                              <BarChart3 className="h-3.5 w-3.5 inline mr-1" />
+                              Chart
+                            </button>
+                          </div>
+                        )}
+                  </div>
+                      {busy && !result?.rows ? (
+                        <TableSkeleton rows={6} cols={result?.fields?.length || 4} />
+                      ) : hasRows && result ? (
+                        <div className="space-y-4 print-keep-together">
+                          {/* Chart — always rendered in print, toggle on screen */}
+                          <div className={view === "chart" ? "block" : "hidden print:block"}>
+                            <ResultsChart fields={result.fields} rows={result.rows} />
+                          </div>
+                          {/* Table — always rendered in print */}
+                          <div className={view === "table" ? "block" : "hidden print:block"}>
+                            <ResultsTable fields={result.fields} rows={result.rows} />
+                          </div>
+                        </div>
+                      ) : (
+                        <EmptyState title="No results yet" message="Ask a business question above — insights, trends, and projections will appear here." />
+                      )}
+                      {hasRows && (
+                        <div className="mt-4 flex flex-wrap gap-2 no-print">
+                          <Button onClick={downloadCsv} variant="secondary" className="w-full sm:w-auto">
+                            <Download className="h-4 w-4" />
+                            Download as Spreadsheet
+                          </Button>
+                          <Button onClick={downloadPdf} variant="secondary" className="w-full sm:w-auto">
+                            <FileText className="h-4 w-4" />
+                            Download as PDF
+                          </Button>
+                        </div>
+                      )}
+                    </CardBody>
+                  </Card>
 
-                {/* AI Insights (standard data queries) */}
-                {hasRows && result && !analysisContext && (
-                  <InsightPanel
-                    question={lastQuestion}
-                    sql={result.sql}
-                    fields={result.fields}
-                    rows={result.rows}
-                  />
-                )}
+                  {/* SQL (collapsible) — hidden in print */}
+                  {(result?.sql || busy) && (
+                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] no-print">
+                      <button
+                        type="button"
+                        onClick={() => setShowSql(!showSql)}
+                        className="w-full flex items-center gap-2.5 px-4 sm:px-5 py-3 text-left hover:bg-white/[0.02] transition-colors rounded-xl"
+                      >
+                        <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.04] text-grape-400">
+                          <Code2 className="h-3.5 w-3.5" />
+                        </div>
+                        <p className="text-xs font-medium text-grape-300 flex-1">
+                          {showSql ? "Hide" : "Show"} the database query (advanced)
+                        </p>
+                        <svg
+                          className={`h-4 w-4 text-grape-400 transition-transform ${showSql ? "rotate-180" : ""}`}
+                          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                        >
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {showSql && (
+                        <div className="px-4 sm:px-5 pb-4">
+                          {busy && !result?.sql ? (
+                            <div className="space-y-2">
+                              <Skeleton className="h-4 w-2/3" />
+                              <Skeleton className="h-4 w-1/2" />
+                              <Skeleton className="h-4 w-3/4" />
+                            </div>
+                          ) : result?.sql ? (
+                            <CodeBlock code={result.sql} />
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Deep Analysis (predictive / prescriptive questions) */}
+                  {analysisContext && (
+                    <DeepAnalysisPanel
+                      question={analysisContext.question}
+                      datasourceId={analysisContext.datasourceId}
+                    />
+                  )}
+
+                  {/* AI Insights (standard data queries) */}
+                  {hasRows && result && !analysisContext && (
+                    <InsightPanel
+                      question={lastQuestion}
+                      sql={result.sql}
+                      fields={result.fields}
+                      rows={result.rows}
+                    />
+                  )}
+
+                </div>{/* end print section */}
               </section>
             </div>
           )}
@@ -537,10 +657,22 @@ export default function HomePage() {
       <ConnectDatabaseModal
         open={showConnectModal}
         onClose={() => setShowConnectModal(false)}
-        onConnected={() => {
+        onConnected={async () => {
           setShowConnectModal(false);
           syncFromLocalStorage();
           toast.success("Data source connected!");
+          // Show auto-summary for the newly connected source
+          try {
+            const datasourceId = localStorage.getItem("datasourceId");
+            if (datasourceId) {
+              const { fetchAccessibleDataSources: fetchSources } = await import("@/src/lib/datasourceClient");
+              const list = await fetchSources();
+              const ds = list.find((s) => s.id === datasourceId);
+              setJustConnected({ id: datasourceId, name: ds?.name });
+            }
+          } catch {
+            // ignore
+          }
         }}
       />
       </>

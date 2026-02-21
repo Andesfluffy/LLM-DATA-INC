@@ -136,31 +136,85 @@
     margin: 18mm 15mm 18mm 15mm;
   }
 
-  /* Hide everything interactive */
-  .no-print { display: none !important; }
+  /* Visibility trick: hide entire page, then reveal only the report section */
+  body * { visibility: hidden; }
 
-  /* Show only the print report */
-  .print-only {
-    display: block !important;
+  [data-print-section],
+  [data-print-section] * { visibility: visible; }
+
+  [data-print-section] {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 0 16px;
   }
 
-  body {
-    background: #ffffff !important;
-    color: #111827 !important;
-    font-size: 13px;
-  }
+  /* White backgrounds for all containers */
+  [data-print-section] div,
+  [data-print-section] section { background: #ffffff !important; }
+
+  /* Text colours */
+  [data-print-section] p,
+  [data-print-section] span,
+  [data-print-section] li     { color: #374151 !important; }
+
+  [data-print-section] h1,
+  [data-print-section] h2,
+  [data-print-section] h3,
+  [data-print-section] h4,
+  [data-print-section] .text-white { color: #111827 !important; }
+
+  [data-print-section] .text-slate-300,
+  [data-print-section] .text-grape-300,
+  [data-print-section] .text-slate-400,
+  [data-print-section] .text-grape-400 { color: #374151 !important; }
+
+  /* Border colours */
+  [data-print-section] [class*="border"] { border-color: #e5e7eb !important; }
 
   /* Recharts SVG colours → light theme */
-  .recharts-cartesian-axis-tick-value,
-  .recharts-legend-item-text {
+  [data-print-section] .recharts-cartesian-axis-tick-value,
+  [data-print-section] .recharts-legend-item-text {
     fill: #374151 !important;
     color: #374151 !important;
   }
+  [data-print-section] .recharts-cartesian-grid line { stroke: #d1d5db !important; }
+  [data-print-section] .recharts-reference-line line { stroke: #9ca3af !important; }
+  [data-print-section] .recharts-tooltip-wrapper     { display: none !important; }
 
-  .recharts-cartesian-grid line { stroke: #d1d5db !important; }
-  .recharts-reference-line line { stroke: #9ca3af !important; }
-  .recharts-tooltip-wrapper        { display: none !important; }
+  /* Table styling for print */
+  [data-print-section] table { border-collapse: collapse; width: 100%; }
+  [data-print-section] th,
+  [data-print-section] td {
+    border: 1px solid #d1d5db !important;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+    color: #111827 !important;
+    background: #ffffff !important;
+  }
+  [data-print-section] th { background: #f3f4f6 !important; font-weight: 600 !important; }
 
   /* Prevent chart/table from splitting across pages */
   .print-keep-together { break-inside: avoid; page-break-inside: avoid; }
+
+  /* no-print: hidden even inside the print section */
+  .no-print { display: none !important; visibility: hidden !important; }
+
+  /* Report header only shown in print */
+  .print-report-header {
+    display: block !important;
+    visibility: visible !important;
+    border-bottom: 2px solid #ea580c;
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+  }
+  .print-report-header h1 {
+    font-size: 18px !important;
+    color: #111827 !important;
+  }
+  .print-report-header p {
+    font-size: 11px !important;
+    color: #6b7280 !important;
+  }
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Database, Loader2, CheckCircle2, XCircle, Upload } from "lucide-react";
+import { Database, Loader2, CheckCircle2, XCircle, Upload, Plus, ArrowLeft, Check } from "lucide-react";
 import Modal from "@/src/components/ui/Modal";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
@@ -46,6 +46,16 @@ type Props = {
   onConnected: () => void;
 };
 
+type View = "pick" | "connect";
+
+function sourceTypeLabel(type: string | null) {
+  if (!type) return "Database";
+  if (type === "csv") return "Spreadsheet";
+  if (type === "postgres") return "PostgreSQL";
+  if (type === "mysql") return "MySQL";
+  return type;
+}
+
 export default function ConnectDatabaseModal({ open, onClose, onConnected }: Props) {
   const [form, setForm] = useState<FormState>(defaults);
   const [testing, setTesting] = useState(false);
@@ -56,16 +66,33 @@ export default function ConnectDatabaseModal({ open, onClose, onConnected }: Pro
   const [selectedSheet, setSelectedSheet] = useState("");
   const [sheetBusy, setSheetBusy] = useState(false);
 
+  const [sources, setSources] = useState<DataSourceSummary[]>([]);
+  const [loadingSources, setLoadingSources] = useState(false);
+  const [view, setView] = useState<View>("pick");
+  const [activeDsId, setActiveDsId] = useState<string | null>(null);
+
   useEffect(() => {
-    if (open) {
-      setForm(defaults);
-      setTesting(false);
-      setSaving(false);
-      setFeedback(null);
-      setCsvFile(null);
-      setSheetOptions([]);
-      setSelectedSheet("");
-    }
+    if (!open) return;
+    setForm(defaults);
+    setTesting(false);
+    setSaving(false);
+    setFeedback(null);
+    setCsvFile(null);
+    setSheetOptions([]);
+    setSelectedSheet("");
+    setActiveDsId(typeof window !== "undefined" ? localStorage.getItem("datasourceId") : null);
+
+    setLoadingSources(true);
+    fetchAccessibleDataSources()
+      .then((list) => {
+        setSources(list);
+        setView(list.length > 0 ? "pick" : "connect");
+      })
+      .catch(() => {
+        setSources([]);
+        setView("connect");
+      })
+      .finally(() => setLoadingSources(false));
   }, [open]);
 
   const update = useCallback(<K extends keyof FormState>(key: K, val: FormState[K]) => {
@@ -78,6 +105,12 @@ export default function ConnectDatabaseModal({ open, onClose, onConnected }: Pro
     if (!ds) return;
     localStorage.setItem("datasourceId", ds.id);
   }, []);
+
+  const switchToSource = useCallback((ds: DataSourceSummary) => {
+    applyDatasource(ds);
+    onConnected();
+    onClose();
+  }, [applyDatasource, onConnected, onClose]);
 
   const onTest = useCallback(async () => {
     setTesting(true);
@@ -184,154 +217,227 @@ export default function ConnectDatabaseModal({ open, onClose, onConnected }: Pro
 
   return (
     <Modal open={open} onClose={onClose}>
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
-        {/* Title */}
-        <div className="text-center">
-          <h2 className="text-lg font-semibold text-white">Connect Your Data</h2>
-          <p className="text-sm text-grape-400 mt-1">Database or spreadsheet</p>
+      {loadingSources ? (
+        <div className="flex flex-col items-center justify-center py-10 gap-3">
+          <Loader2 className="h-5 w-5 animate-spin text-grape-400" />
+          <p className="text-sm text-grape-400">Loading sources…</p>
         </div>
-
-        {/* Source type pills */}
-        <div className="flex gap-1.5">
-          {([
-            { type: "postgres" as ConnectorType, label: "PostgreSQL" },
-            { type: "mysql" as ConnectorType, label: "MySQL" },
-            { type: "csv" as ConnectorType, label: "Spreadsheet" },
-          ]).map(({ type, label }) => (
-            <button
-              key={type}
-              type="button"
-              onClick={() => {
-                setForm((prev) => ({ ...prev, type, port: portDefaults[type] || prev.port }));
-                setFeedback(null);
-              }}
-              className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-all ${
-                form.type === type
-                  ? "border-white/[0.15] bg-white/[0.06] text-white"
-                  : "border-white/[0.06] text-grape-400 hover:text-grape-200"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-
-        {/* Name */}
-        <Input
-          label="Name"
-          value={form.name}
-          onChange={(e) => update("name", (e.target as HTMLInputElement).value)}
-          placeholder={isSpreadsheet ? "e.g., Sales data" : "e.g., Production DB"}
-        />
-
-        {isSpreadsheet ? (
-          <div>
-            <label className="block text-sm font-medium text-grape-200 mb-1.5">File</label>
-            <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-white/[0.08] bg-white/[0.02] px-4 py-4 transition hover:border-white/[0.14]">
-              <input
-                type="file"
-                accept=".csv,.xlsx,.xls"
-                className="sr-only"
-                onChange={(e) => handleSpreadsheetSelected(e.target.files?.[0] || null)}
-              />
-              <Upload className="h-4 w-4 text-grape-400 shrink-0" />
-              <span className="text-sm text-grape-300 truncate">
-                {csvFile ? csvFile.name : "Choose .csv, .xlsx, or .xls"}
-              </span>
-            </label>
-            {sheetBusy && <p className="mt-1.5 text-xs text-grape-400">Reading sheets...</p>}
-            {!sheetBusy && sheetOptions.length > 1 && (
-              <select
-                value={selectedSheet}
-                onChange={(e) => setSelectedSheet(e.target.value)}
-                className="mt-2 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-grape-100 focus:border-white/[0.15] focus:outline-none"
-              >
-                {sheetOptions.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            )}
+      ) : view === "pick" ? (
+        <div className="space-y-4">
+          {/* Title */}
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-white">Switch Data Source</h2>
+            <p className="text-sm text-grape-400 mt-1">Select a connected source or add a new one</p>
           </div>
-        ) : (
-          /* --- Database fields --- */
-          <>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-2">
+
+          {/* Source list */}
+          <ul className="space-y-2">
+            {sources.map((ds) => {
+              const isActive = ds.id === activeDsId;
+              return (
+                <li key={ds.id}>
+                  <button
+                    type="button"
+                    onClick={() => switchToSource(ds)}
+                    className={`w-full flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition-all ${
+                      isActive
+                        ? "border-white/[0.20] bg-white/[0.07]"
+                        : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.05]"
+                    }`}
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/[0.05]">
+                      <Database className="h-4 w-4 text-grape-300" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{ds.name || "Unnamed"}</p>
+                      <p className="text-xs text-grape-400 truncate">
+                        {sourceTypeLabel(ds.type)}
+                        {ds.host ? ` · ${ds.host}` : ""}
+                        {ds.database ? ` / ${ds.database}` : ""}
+                      </p>
+                    </div>
+                    {isActive && (
+                      <Check className="h-4 w-4 shrink-0 text-emerald-400" />
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Add new */}
+          <button
+            type="button"
+            onClick={() => { setView("connect"); setFeedback(null); setForm(defaults); }}
+            className="w-full flex items-center gap-2 rounded-xl border border-dashed border-white/[0.08] px-4 py-3 text-sm text-grape-400 hover:border-white/[0.15] hover:text-grape-200 transition-all"
+          >
+            <Plus className="h-4 w-4" />
+            Add new data source
+          </button>
+
+          <Button type="button" variant="ghost" onClick={onClose} className="w-full">Cancel</Button>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
+          {/* Title */}
+          <div className="flex items-center gap-2">
+            {sources.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setView("pick")}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-grape-400 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </button>
+            )}
+            <div className={sources.length > 0 ? "" : "text-center w-full"}>
+              <h2 className="text-lg font-semibold text-white">Connect Your Data</h2>
+              <p className="text-sm text-grape-400 mt-0.5">Database or spreadsheet</p>
+            </div>
+          </div>
+
+          {/* Source type pills */}
+          <div className="flex gap-1.5">
+            {([
+              { type: "postgres" as ConnectorType, label: "PostgreSQL" },
+              { type: "mysql" as ConnectorType, label: "MySQL" },
+              { type: "csv" as ConnectorType, label: "Spreadsheet" },
+            ]).map(({ type, label }) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => {
+                  setForm((prev) => ({ ...prev, type, port: portDefaults[type] || prev.port }));
+                  setFeedback(null);
+                }}
+                className={`flex-1 rounded-lg border px-2 py-1.5 text-xs font-medium transition-all ${
+                  form.type === type
+                    ? "border-white/[0.15] bg-white/[0.06] text-white"
+                    : "border-white/[0.06] text-grape-400 hover:text-grape-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Name */}
+          <Input
+            label="Name"
+            value={form.name}
+            onChange={(e) => update("name", (e.target as HTMLInputElement).value)}
+            placeholder={isSpreadsheet ? "e.g., Sales data" : "e.g., Production DB"}
+          />
+
+          {isSpreadsheet ? (
+            <div>
+              <label className="block text-sm font-medium text-grape-200 mb-1.5">File</label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-white/[0.08] bg-white/[0.02] px-4 py-4 transition hover:border-white/[0.14]">
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls"
+                  className="sr-only"
+                  onChange={(e) => handleSpreadsheetSelected(e.target.files?.[0] || null)}
+                />
+                <Upload className="h-4 w-4 text-grape-400 shrink-0" />
+                <span className="text-sm text-grape-300 truncate">
+                  {csvFile ? csvFile.name : "Choose .csv, .xlsx, or .xls"}
+                </span>
+              </label>
+              {sheetBusy && <p className="mt-1.5 text-xs text-grape-400">Reading sheets...</p>}
+              {!sheetBusy && sheetOptions.length > 1 && (
+                <select
+                  value={selectedSheet}
+                  onChange={(e) => setSelectedSheet(e.target.value)}
+                  className="mt-2 w-full rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-grape-100 focus:border-white/[0.15] focus:outline-none"
+                >
+                  {sheetOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              )}
+            </div>
+          ) : (
+            /* --- Database fields --- */
+            <>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <Input
+                    label="Host"
+                    value={form.host}
+                    onChange={(e) => update("host", (e.target as HTMLInputElement).value)}
+                    placeholder="db.example.com"
+                  />
+                </div>
                 <Input
-                  label="Host"
-                  value={form.host}
-                  onChange={(e) => update("host", (e.target as HTMLInputElement).value)}
-                  placeholder="db.example.com"
+                  label="Port"
+                  value={form.port}
+                  onChange={(e) => update("port", (e.target as HTMLInputElement).value)}
+                  placeholder={form.type === "mysql" ? "3306" : "5432"}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  label="Database"
+                  value={form.database}
+                  onChange={(e) => update("database", (e.target as HTMLInputElement).value)}
+                  placeholder={form.type === "mysql" ? "mydb" : "postgres"}
+                />
+                <Input
+                  label="User"
+                  value={form.user}
+                  onChange={(e) => update("user", (e.target as HTMLInputElement).value)}
+                  placeholder="reader"
                 />
               </div>
               <Input
-                label="Port"
-                value={form.port}
-                onChange={(e) => update("port", (e.target as HTMLInputElement).value)}
-                placeholder={form.type === "mysql" ? "3306" : "5432"}
+                label="Password"
+                type="password"
+                value={form.password}
+                onChange={(e) => update("password", (e.target as HTMLInputElement).value)}
+                placeholder="••••••••"
               />
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                label="Database"
-                value={form.database}
-                onChange={(e) => update("database", (e.target as HTMLInputElement).value)}
-                placeholder={form.type === "mysql" ? "mydb" : "postgres"}
-              />
-              <Input
-                label="User"
-                value={form.user}
-                onChange={(e) => update("user", (e.target as HTMLInputElement).value)}
-                placeholder="reader"
-              />
-            </div>
-            <Input
-              label="Password"
-              type="password"
-              value={form.password}
-              onChange={(e) => update("password", (e.target as HTMLInputElement).value)}
-              placeholder="••••••••"
-            />
-          </>
-        )}
-
-        {/* Feedback */}
-        {feedback && (
-          <div className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${
-            feedback.ok
-              ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
-              : "border border-red-400/20 bg-red-500/10 text-red-300"
-          }`}>
-            {feedback.ok
-              ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-              : <XCircle className="h-3.5 w-3.5 shrink-0" />}
-            {feedback.msg}
-          </div>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center gap-2 pt-1">
-          {isSpreadsheet ? (
-            <Button type="submit" disabled={!csvFile || saving} variant="primary" className="flex-1">
-              {saving
-                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...</>
-                : "Upload & Connect"}
-            </Button>
-          ) : (
-            <>
-              <Button type="button" variant="secondary" disabled={testing} onClick={onTest} className="flex-1">
-                {testing
-                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Testing...</>
-                  : "Test"}
-              </Button>
-              <Button type="submit" disabled={saving} variant="primary" className="flex-1">
-                {saving
-                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...</>
-                  : "Save & Connect"}
-              </Button>
             </>
           )}
-          <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
-        </div>
-      </form>
+
+          {/* Feedback */}
+          {feedback && (
+            <div className={`flex items-center gap-2 rounded-lg px-3 py-2 text-xs ${
+              feedback.ok
+                ? "border border-emerald-500/20 bg-emerald-500/10 text-emerald-300"
+                : "border border-red-400/20 bg-red-500/10 text-red-300"
+            }`}>
+              {feedback.ok
+                ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+                : <XCircle className="h-3.5 w-3.5 shrink-0" />}
+              {feedback.msg}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center gap-2 pt-1">
+            {isSpreadsheet ? (
+              <Button type="submit" disabled={!csvFile || saving} variant="primary" className="flex-1">
+                {saving
+                  ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Uploading...</>
+                  : "Upload & Connect"}
+              </Button>
+            ) : (
+              <>
+                <Button type="button" variant="secondary" disabled={testing} onClick={onTest} className="flex-1">
+                  {testing
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Testing...</>
+                    : "Test"}
+                </Button>
+                <Button type="submit" disabled={saving} variant="primary" className="flex-1">
+                  {saving
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving...</>
+                    : "Save & Connect"}
+                </Button>
+              </>
+            )}
+            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          </div>
+        </form>
+      )}
     </Modal>
   );
 }
