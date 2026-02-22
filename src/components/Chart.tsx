@@ -13,19 +13,29 @@ import {
   Legend,
 } from "recharts";
 
+export type ChartDisplayType = "auto" | "line" | "bar";
+
 type Props = {
   fields: string[];
   rows: Record<string, any>[];
+  /** Override the auto-detected chart type */
+  chartType?: ChartDisplayType;
 };
 
 // Heuristics: prefer (date/time + numeric) → line; else (categorical + numeric) → bar
-export default function ResultsChart({ fields, rows }: Props) {
+export default function ResultsChart({ fields, rows, chartType = "auto" }: Props) {
   if (!rows || rows.length === 0) return null;
   const f = inferChartFields(fields, rows);
   if (!f) return null;
-  const denseCategoryAxis = f.kind === "category" && rows.length > 4;
+
+  const effectiveKind =
+    chartType === "line" ? "time"
+    : chartType === "bar" ? "category"
+    : f.kind;
+
+  const denseCategoryAxis = effectiveKind === "category" && rows.length > 4;
   const data = rows.map((r) => {
-    const x = f.kind === "time" ? normalizeDate(r[f.x]) : String(r[f.x]);
+    const x = effectiveKind === "time" ? normalizeDate(r[f.x]) : String(r[f.x]);
     const y = Number(r[f.y]);
     return { [f.x]: x, [f.y]: y };
   });
@@ -33,7 +43,7 @@ export default function ResultsChart({ fields, rows }: Props) {
   return (
     <div className="brand-bg w-full h-[250px] sm:h-[320px] rounded-xl p-2 sm:p-3 border border-[#2A2D3A]">
       <ResponsiveContainer>
-        {f.kind === "time" ? (
+        {effectiveKind === "time" ? (
           <LineChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: -16 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#2A2D3A" />
             <XAxis dataKey={f.x} tick={{ fontSize: 10, fill: '#e5e7eb' }} stroke="#475569" />

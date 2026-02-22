@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, Sparkles, FileDown } from "lucide-react";
+import QueryHistoryPanel from "@/components/QueryHistoryPanel";
 
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
@@ -11,6 +12,7 @@ import Textarea from "@/src/components/ui/Textarea";
 import { TableSkeleton } from "@/components/ui/skeleton";
 import AnalysisChart, { type ChartConfig } from "@/src/components/AnalysisChart";
 import { fetchAccessibleDataSources } from "@/src/lib/datasourceClient";
+import ConnectDatabaseModal from "@/src/components/ConnectDatabaseModal";
 
 type QueryClientProps = { canRun: boolean };
 type Row = Record<string, unknown>;
@@ -151,6 +153,7 @@ export default function QueryClient({ canRun }: QueryClientProps) {
   const [showSql, setShowSql] = useState(false);
   const [showTable, setShowTable] = useState(false);
   const [isRerunning, setIsRerunning] = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   const ensureConnectionIds = useCallback(async (): Promise<ConnectionIds | null> => {
     try {
@@ -165,8 +168,9 @@ export default function QueryClient({ canRun }: QueryClientProps) {
       if (datasourceId) return { datasourceId };
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      return null;
     }
-    setError("Please save a data source in Settings.");
+    setShowConnectModal(true);
     return null;
   }, []);
 
@@ -174,6 +178,26 @@ export default function QueryClient({ canRun }: QueryClientProps) {
     const { auth } = await import("@/lib/firebase/client");
     return auth.currentUser?.getIdToken() ?? undefined;
   }, []);
+
+  // Called when user finishes connecting a datasource from the inline modal
+  const handleConnected = useCallback(async () => {
+    setShowConnectModal(false);
+    setError(null);
+    const ids = await ensureConnectionIds();
+    if (!ids) return;
+    setIsBriefingLoading(true);
+    try {
+      const idToken = await getIdToken();
+      const resp = await fetch("/api/datasources/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(idToken ? { Authorization: `Bearer ${idToken}` } : {}) },
+        body: JSON.stringify({ datasourceId: ids.datasourceId }),
+      });
+      if (resp.ok) setBriefing((await resp.json()) as Briefing);
+    } catch { /* non-critical */ } finally {
+      setIsBriefingLoading(false);
+    }
+  }, [ensureConnectionIds, getIdToken]);
 
   // ── Proactive briefing ────────────────────────────────────────────────
   useEffect(() => {
@@ -457,6 +481,17 @@ export default function QueryClient({ canRun }: QueryClientProps) {
             </CardBody>
           </Card>
         )}
+
+        {/* Query History */}
+        <QueryHistoryPanel
+          onRerun={(question) => {
+            setPrompt(question);
+            setOffTopic(null);
+            setError(null);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        />
+
       </div>
 
       {/* ── Print-only report (hidden on screen) ── */}
@@ -471,6 +506,12 @@ export default function QueryClient({ canRun }: QueryClientProps) {
           />
         </div>
       )}
+
+      <ConnectDatabaseModal
+        open={showConnectModal}
+        onClose={() => setShowConnectModal(false)}
+        onConnected={handleConnected}
+      />
     </>
   );
 }

@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { getUserFromRequest } from "@/lib/auth-server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { ensureUser, findAccessibleDataSource } from "@/lib/userOrg";
 import { getConnector } from "@/lib/connectors/registry";
 import { getGuardrails } from "@/lib/connectors/guards";
@@ -18,6 +19,15 @@ export async function POST(req: NextRequest) {
   const userAuth = await getUserFromRequest(req);
   if (!userAuth) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+  }
+
+  // 5 deep-analysis requests per minute per user (these are expensive)
+  const rl = checkRateLimit(`analysis:${userAuth.uid}`, 5, 60_000);
+  if (!rl.ok) {
+    return new Response(
+      JSON.stringify({ error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds before trying again.` }),
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    );
   }
 
   const parsed = Body.safeParse(await req.json());

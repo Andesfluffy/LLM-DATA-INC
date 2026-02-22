@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { z } from "zod";
 
 import { getUserFromRequest } from "@/lib/auth-server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { buildDatasetOverviewResult, isDatasetOverviewQuestion } from "@/lib/datasetOverview";
 import { getGuardrails } from "@/lib/connectors/guards";
 import { getConnector } from "@/lib/connectors/registry";
@@ -26,6 +27,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: "Please sign in to ask questions about your data." },
       { status: 401 }
+    );
+  }
+
+  // 20 queries per minute per user
+  const rl = checkRateLimit(`query:${userAuth.uid}`, 20, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds before trying again.` },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
     );
   }
 
@@ -93,7 +103,7 @@ export async function POST(req: NextRequest) {
         dialect: factory.dialect,
         conversationHistory: history,
       });
-      nlCache.set(cacheKey, { sql: sqlRaw, expiresAt: Date.now() + 30_000 });
+      nlCacheSet(cacheKey, { sql: sqlRaw, expiresAt: Date.now() + 30_000 });
     }
 
     // Off-topic: nlToSql signals the question doesn't match the schema
@@ -173,4 +183,24 @@ export async function POST(req: NextRequest) {
   }
 }
 
+const NL_CACHE_MAX = 500;
 const nlCache = new Map<string, { sql: string; expiresAt: number }>();
+
+function nlCacheSet(key: string, value: { sql: string; expiresAt: number }) {
+  // Evict expired entries first; if still too large, clear oldest half
+  if (nlCache.size >= NL_CACHE_MAX) {
+    const now = Date.now();
+    for (const [k, v] of nlCache) {
+      if (v.expiresAt <= now) nlCache.delete(k);
+    }
+    if (nlCache.size >= NL_CACHE_MAX) {
+      // Delete the first NL_CACHE_MAX/2 entries (oldest insertions)
+      let count = 0;
+      for (const k of nlCache.keys()) {
+        nlCache.delete(k);
+        if (++count >= NL_CACHE_MAX / 2) break;
+      }
+    }
+  }
+  nlCache.set(key, value);
+}

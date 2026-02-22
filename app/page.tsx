@@ -6,6 +6,7 @@ import {
   Code2,
   Table2,
   BarChart3,
+  LineChart,
   Download,
   AlertCircle,
   Loader2,
@@ -13,6 +14,10 @@ import {
   Database,
   FileText,
   HelpCircle,
+  Bookmark,
+  BookmarkCheck,
+  Share2,
+  Sparkles,
 } from "lucide-react";
 import OnboardingWizard from "@/src/components/onboarding/OnboardingWizard";
 import { useConversationThread } from "@/src/hooks/useConversationThread";
@@ -28,6 +33,7 @@ import HowItWorks from "@/src/components/landing/HowItWorks";
 import MosaicHero from "@/src/components/landing/MosaicHero";
 import QueryInput from "@/src/components/QueryInput";
 import QueryBuilder from "@/src/components/QueryBuilder";
+import SavedQueriesPanel from "@/components/SavedQueriesPanel";
 
 import DeepAnalysisPanel from "@/src/components/DeepAnalysisPanel";
 import InsightPanel from "@/src/components/InsightPanel";
@@ -37,6 +43,9 @@ import DataSummaryPanel from "@/src/components/DataSummaryPanel";
 import { toast } from "@/src/components/ui/Toast";
 import ConnectDatabaseModal from "@/src/components/ConnectDatabaseModal";
 import { fetchAccessibleDataSources } from "@/src/lib/datasourceClient";
+import { getAuthHeaders } from "@/lib/uploadUtils";
+import { saveQuery, removeSavedQuery, isQuerySaved, getSavedQueries } from "@/lib/savedQueries";
+import type { ChartDisplayType } from "@/src/components/Chart";
 
 type QueryResult = {
   sql: string;
@@ -76,6 +85,10 @@ export default function HomePage() {
   const [activeDatasourceName, setActiveDatasourceName] = useState<string | undefined>(undefined);
   const [view, setView] = useState<"table" | "chart">("chart");
   const [showSql, setShowSql] = useState(false);
+  const [chartType, setChartType] = useState<ChartDisplayType>("auto");
+  const [savedRefreshKey, setSavedRefreshKey] = useState(0);
+  const [currentQuestionSaved, setCurrentQuestionSaved] = useState(false);
+  const [isActivatingDemo, setIsActivatingDemo] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingChecked, setOnboardingChecked] = useState(false);
   const { thread, addTurn, clearThread } = useConversationThread();
@@ -148,6 +161,57 @@ export default function HomePage() {
     syncFromLocalStorage();
   }, [syncFromLocalStorage]);
 
+  // Pre-fill question from URL ?q= param (for shared links)
+  useEffect(() => {
+    if (!user) return;
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (!q) return;
+    window.history.replaceState({}, "", window.location.pathname);
+    // Small delay so datasource can resolve first
+    const t = setTimeout(() => onAsk(q), 300);
+    return () => clearTimeout(t);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleShare = useCallback(() => {
+    if (!lastQuestion) return;
+    const url = `${window.location.origin}${window.location.pathname}?q=${encodeURIComponent(lastQuestion)}`;
+    navigator.clipboard.writeText(url).then(() => toast.success("Share link copied to clipboard!")).catch(() => toast.error("Could not copy link"));
+  }, [lastQuestion]);
+
+  const handleToggleSave = useCallback(() => {
+    if (!lastQuestion) return;
+    if (currentQuestionSaved) {
+      const items = getSavedQueries();
+      const found = items.find((q) => q.question === lastQuestion);
+      if (found) { removeSavedQuery(found.id); setSavedRefreshKey((k) => k + 1); }
+      setCurrentQuestionSaved(false);
+      toast.success("Removed from saved queries");
+    } else {
+      saveQuery(lastQuestion);
+      setCurrentQuestionSaved(true);
+      setSavedRefreshKey((k) => k + 1);
+      toast.success("Saved!");
+    }
+  }, [lastQuestion, currentQuestionSaved]);
+
+  const handleActivateDemo = useCallback(async () => {
+    setIsActivatingDemo(true);
+    try {
+      const headers = await getAuthHeaders();
+      const res = await fetch("/api/demo/activate", { method: "POST", headers });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to activate demo");
+      localStorage.setItem("datasourceId", data.id);
+      syncFromLocalStorage();
+      setShowOnboarding(false);
+      toast.success(data.alreadyExisted ? "Demo data loaded!" : "Sample data connected! Try asking a question.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not load demo data");
+    } finally {
+      setIsActivatingDemo(false);
+    }
+  }, [syncFromLocalStorage]);
+
   const onAsk = useCallback(
     async (rawPrompt: string) => {
       const prompt = rawPrompt.trim();
@@ -158,6 +222,8 @@ export default function HomePage() {
       setResult(null);
       setOffTopic(null);
       setLastQuestion(prompt);
+      setChartType("auto");
+      setCurrentQuestionSaved(isQuerySaved(prompt));
 
       try {
         const ids = await resolveConnectionIds();
@@ -331,10 +397,16 @@ export default function HomePage() {
                     <p className="text-sm text-grape-400 mb-4 max-w-xs mx-auto">
                       Link your database and start getting real-time insights instantly.
                     </p>
-                    <Button variant="primary" onClick={() => setShowConnectModal(true)}>
-                      <Database className="h-4 w-4" />
-                      Connect a Database
-                    </Button>
+                    <div className="flex flex-col sm:flex-row items-center gap-2 justify-center">
+                      <Button variant="primary" onClick={() => setShowConnectModal(true)}>
+                        <Database className="h-4 w-4" />
+                        Connect a Database
+                      </Button>
+                      <Button variant="secondary" onClick={handleActivateDemo} disabled={isActivatingDemo}>
+                        {isActivatingDemo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        Try Sample Data
+                      </Button>
+                    </div>
                     <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2 items-center justify-center">
                       {["Total sales last month?", "Next quarter revenue?", "Customers at risk?"].map((ex) => (
                         <span key={ex} className="px-2.5 py-1 rounded-full border border-white/[0.06] bg-white/[0.02] text-grape-400 text-xs">
@@ -480,7 +552,8 @@ export default function HomePage() {
                       )}
                     </div>
                     {hasRows && (
-                      <div className="flex items-center gap-1.5 no-print">
+                      <div className="flex items-center gap-1.5 flex-wrap no-print">
+                        {/* View toggle */}
                         {(["chart", "table"] as const).map((v) => (
                           <button
                             key={v}
@@ -498,6 +571,28 @@ export default function HomePage() {
                               : <><Table2 className="h-3.5 w-3.5" /><span>Table</span></>}
                           </button>
                         ))}
+                        {/* Chart type selector — only visible when chart view is active */}
+                        {view === "chart" && (
+                          <div className="flex items-center gap-1 border-l border-white/[0.06] pl-1.5">
+                            {(["auto", "bar", "line"] as const).map((ct) => (
+                              <button
+                                key={ct}
+                                type="button"
+                                title={`${ct === "auto" ? "Auto-detect" : ct === "bar" ? "Bar chart" : "Line chart"}`}
+                                onClick={() => setChartType(ct)}
+                                className={`flex items-center justify-center rounded-lg border p-1.5 transition-all ${
+                                  chartType === ct
+                                    ? "border-white/[0.15] bg-white/[0.06] text-white"
+                                    : "border-transparent text-grape-500 hover:text-grape-300"
+                                }`}
+                              >
+                                {ct === "line"
+                                  ? <LineChart className="h-3.5 w-3.5" />
+                                  : <BarChart3 className="h-3.5 w-3.5" />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -507,7 +602,7 @@ export default function HomePage() {
                   ) : hasRows && result ? (
                     <div className="space-y-4 print-keep-together">
                       <div className={view === "chart" ? "block" : "hidden print:block"}>
-                        <ResultsChart fields={result.fields} rows={result.rows} />
+                        <ResultsChart fields={result.fields} rows={result.rows} chartType={chartType} />
                       </div>
                       <div className={view === "table" ? "block" : "hidden print:block"}>
                         <ResultsTable fields={result.fields} rows={result.rows} />
@@ -521,7 +616,7 @@ export default function HomePage() {
                   )}
 
                   {hasRows && (
-                    <div className="mt-4 flex flex-col sm:flex-row gap-2 no-print">
+                    <div className="mt-4 flex flex-col sm:flex-row gap-2 flex-wrap no-print">
                       <Button onClick={downloadCsv} variant="secondary" className="w-full sm:w-auto">
                         <Download className="h-4 w-4" />
                         Download Spreadsheet
@@ -529,6 +624,14 @@ export default function HomePage() {
                       <Button onClick={downloadPdf} variant="secondary" className="w-full sm:w-auto">
                         <FileText className="h-4 w-4" />
                         Download PDF
+                      </Button>
+                      <Button onClick={handleShare} variant="secondary" className="w-full sm:w-auto" title="Copy a shareable link pre-filled with this question">
+                        <Share2 className="h-4 w-4" />
+                        Share
+                      </Button>
+                      <Button onClick={handleToggleSave} variant="secondary" className="w-full sm:w-auto" title={currentQuestionSaved ? "Remove from saved queries" : "Save this question"}>
+                        {currentQuestionSaved ? <BookmarkCheck className="h-4 w-4 text-amber-400" /> : <Bookmark className="h-4 w-4" />}
+                        {currentQuestionSaved ? "Saved" : "Save"}
                       </Button>
                     </div>
                   )}
@@ -580,6 +683,13 @@ export default function HomePage() {
                 />
               )}
             </div>
+
+            {/* Saved Queries */}
+            <SavedQueriesPanel
+              refreshKey={savedRefreshKey}
+              onRerun={(q) => { window.scrollTo({ top: 0, behavior: "smooth" }); onAsk(q); }}
+            />
+
           </section>
         </div>
       )}

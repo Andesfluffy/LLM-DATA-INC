@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Database, Sparkles, Loader2, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
+import { Database, Sparkles, Loader2, ArrowRight, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp } from "lucide-react";
 import { getAuthHeaders } from "@/lib/uploadUtils";
 
 type SummaryData = {
@@ -23,6 +23,7 @@ export default function DataSummaryPanel({ datasourceId, datasourceName, onAsk }
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<SummaryData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showAllSuggestions, setShowAllSuggestions] = useState(false);
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return sessionStorage.getItem(SESSION_KEY) === "1";
@@ -172,24 +173,31 @@ export default function DataSummaryPanel({ datasourceId, datasourceName, onAsk }
                     Try asking
                   </p>
                   <div className="space-y-1.5">
-                    {/* Mobile: first 3 only. sm+: all 5 */}
-                    {data.suggestions.map((q, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        onClick={() => onAsk(q)}
-                        className={`group w-full flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-left text-xs text-grape-300 hover:border-white/[0.12] hover:bg-white/[0.05] hover:text-white transition-all ${
-                          i >= 3 ? "hidden sm:flex" : "flex"
-                        }`}
-                      >
-                        <ArrowRight className="h-3 w-3 text-grape-500 group-hover:text-grape-300 shrink-0 mt-0.5 transition-colors" />
-                        <span className="leading-snug">{q}</span>
-                      </button>
-                    ))}
+                    {data.suggestions
+                      .slice(0, showAllSuggestions ? undefined : 3)
+                      .map((q, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => onAsk(q)}
+                          className="group w-full flex items-start gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2.5 text-left text-xs text-grape-300 hover:border-white/[0.12] hover:bg-white/[0.05] hover:text-white transition-all"
+                        >
+                          <ArrowRight className="h-3 w-3 text-grape-500 group-hover:text-grape-300 shrink-0 mt-0.5 transition-colors" />
+                          <span className="leading-snug">{q}</span>
+                        </button>
+                      ))}
                     {data.suggestions.length > 3 && (
-                      <p className="text-[11px] text-grape-600 pl-1 sm:hidden">
-                        +{data.suggestions.length - 3} more suggestions on larger screens
-                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setShowAllSuggestions((v) => !v)}
+                        className="flex items-center gap-1.5 pl-1 text-[11px] text-grape-500 hover:text-grape-300 transition-colors"
+                      >
+                        {showAllSuggestions ? (
+                          <><ChevronsUp className="h-3 w-3" /> Show less</>
+                        ) : (
+                          <><ChevronsDown className="h-3 w-3" /> +{data.suggestions.length - 3} more</>
+                        )}
+                      </button>
                     )}
                   </div>
                 </div>

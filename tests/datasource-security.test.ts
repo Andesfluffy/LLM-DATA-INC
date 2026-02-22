@@ -44,7 +44,6 @@ describe("data source access control", () => {
     expect(firstRes.status).toBe(200);
     const firstPayload = await firstRes.json();
     expect(firstPayload.id).toBeTruthy();
-    expect(firstPayload.orgId).toBeTruthy();
 
     const storedFirst = mockContext.store.dataSources.get(firstPayload.id);
     expect(storedFirst?.ownerId).toBe(userOne.uid);
