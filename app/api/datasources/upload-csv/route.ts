@@ -8,7 +8,7 @@ import { parse } from "csv-parse/sync";
 import { extname, join } from "path";
 import { mkdirSync, writeFileSync } from "fs";
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 4.5 * 1024 * 1024;
 const DEFAULT_INLINE_MAX_BYTES = 2 * 1024 * 1024;
 const DEFAULT_RETENTION_DAYS = 30;
 const SUPPORTED_EXTENSIONS = new Set([".csv", ".xlsx", ".xls"]);
@@ -195,9 +195,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Only .csv, .xlsx, and .xls files are supported" }, { status: 400 });
   }
 
-  // 10MB limit
+  // 50MB limit
   if (file.size > MAX_UPLOAD_BYTES) {
-    return NextResponse.json({ error: "File too large (max 10MB)" }, { status: 400 });
+    return NextResponse.json({ error: "File too large (max 4.5MB)" }, { status: 400 });
   }
 
   let parsed: { csvBuffer: Buffer; sourceSheet?: string; availableSheets?: string[]; delimiter: string };

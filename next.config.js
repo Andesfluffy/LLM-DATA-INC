@@ -5,7 +5,7 @@ const nextConfig = {
   serverExternalPackages: ["better-sqlite3", "pg", "mysql2", "sql.js"],
   experimental: {
     serverActions: {
-      bodySizeLimit: "2mb"
+      bodySizeLimit: "4.5mb"
     }
   },
   headers: async () => {

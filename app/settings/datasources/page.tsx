@@ -470,7 +470,7 @@ export default function DataSourcesSettingsPage() {
                         <p className="text-sm text-grape-300">
                           {csvFile ? csvFile.name : "Drop a .csv, .xlsx, or .xls file here or click to browse"}
                         </p>
-                        <p className="text-xs text-grape-500 mt-1">Max 10MB</p>
+                        <p className="text-xs text-grape-500 mt-1">Max 4.5MB</p>
                         {sheetBusy && <p className="mt-2 text-xs text-grape-400">Reading workbook sheets...</p>}
                       </div>
                       {!sheetBusy && sheetOptions.length > 1 && (

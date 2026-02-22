@@ -2,36 +2,66 @@ import { genAI } from "@/lib/gemini";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-// Patterns that signal a question needs deep analysis (predictions, recommendations, causal reasoning)
-// rather than a simple SQL data retrieval.
+// Patterns that signal a question needs deep analysis (predictions, recommendations, causal reasoning,
+// pattern interpretation) rather than a simple SQL data retrieval.
 const ANALYTICAL_PATTERNS = [
+  // Predictions & forecasts
   /\bpredict\b/i,
   /\bforecast\b/i,
   /\bprojection\b/i,
   /\bproject\b(?! (the|a|an|this|that|those|these|my|our|your) (table|column|row|field|data|result))/i,
-  /what (can|should|could|would|might) (be done|we|they|the (government|authorities|police|state|country))/i,
-  /how (can|do|to|should|could) .*(reduce|improve|prevent|address|tackle|solve|minimize|decrease|lower|curb|combat|stop)/i,
   /what (will|would|might|could) happen/i,
   /what (will|would) .*(look like|be like|become)/i,
   /in the next \d+ (year|month|week|quarter)/i,
   /next (year|month|quarter|decade)/i,
   /\blikelihood\b/i,
   /\bprobability\b/i,
+  /\boutlook\b/i,
+  /\bexpect(ed|ation)?\b.*(next|future|coming)/i,
+
+  // Risk & opportunity
   /\brisk of\b/i,
+  /\bat.?risk\b/i,
+  /\bopportunit(y|ies)\b/i,
+  /\bvulnerab(le|ility)\b/i,
+
+  // Recommendations & strategy
   /\brecommend\b/i,
   /\bsuggestion\b/i,
   /\bstrategy\b/i,
   /\bstrategies\b/i,
+  /what (can|should|could|would|might) (be done|we|they|the (government|authorities|police|state|country))/i,
+  /how (can|do|to|should|could) .*(reduce|improve|prevent|address|tackle|solve|minimize|decrease|lower|curb|combat|stop)/i,
+  /\bprescri(be|ption|ptive)\b/i,
+  /what steps? (can|should|could|would)/i,
+  /what (measures|actions|policies|initiatives)/i,
+
+  // Causal & explanatory
   /what factors? (influence|affect|drive|cause|impact|contribute)/i,
   /why (do|does|is|are|did|were|has|have) .*(high|low|increase|decrease|rise|fall|grow|decline|spike|surge|drop)/i,
   /root cause/i,
   /\binterventions?\b/i,
-  /\bcorrelat(e|ion|ions|ed) (between|with|among)/i,
   /what (is|are) (the|a) (cause|driver|reason) (of|for|behind)/i,
   /how (likely|probable)/i,
-  /\bprescri(be|ption|ptive)\b/i,
-  /what steps? (can|should|could|would)/i,
-  /what (measures|actions|policies|initiatives)/i,
+  /what (explains?|accounts? for|drives?)\b/i,
+  /\bdriven by\b/i,
+
+  // Correlations & patterns
+  /\bcorrelat(e|ion|ions|ed) (between|with|among)/i,
+  /\bpattern(s)?\b.*(in|across|among|between)/i,
+  /\brelationship\b.*(between|with|among)/i,
+  /\bassociat(e|ion)\b.*(between|with)/i,
+
+  // Analysis & insights (interpretive questions)
+  /\banalyze\b|\banalysis\b/i,
+  /\binsight(s)?\b/i,
+  /\bimpact of\b/i,
+  /\beffect of\b/i,
+  /how (well|poorly|effectively|efficiently) .*(perform|work|run|operat)/i,
+  /\bperformance\b.*(assess|evaluat|review|analyz)/i,
+  /\bsignificant(ly)?\b.*(change|shift|differ|drop|spike)/i,
+  /what does .*(mean|tell|indicate|suggest|show)/i,
+  /\bunderstand\b.*(why|how|what)/i,
 ];
 
 export function isAnalyticalQuestion(question: string): boolean {

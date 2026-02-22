@@ -20,6 +20,7 @@ import { uploadCsvFile, getAuthHeaders } from "@/lib/uploadUtils";
 
 type OnboardingWizardProps = {
   onComplete: () => void;
+  onActivateDemo?: () => Promise<void>;
 };
 
 type Step = "welcome" | "connect" | "test" | "first-query" | "complete";
@@ -63,6 +64,7 @@ const PORT_BY_TYPE: Record<ConnectorType, string> = {
 
 export default function OnboardingWizard({
   onComplete,
+  onActivateDemo,
 }: OnboardingWizardProps) {
   const [step, setStep] = useState<Step>("welcome");
   const [form, setForm] = useState<FormState>(DEFAULT_FORM);
@@ -223,9 +225,18 @@ export default function OnboardingWizard({
     uploadSpreadsheet,
   ]);
 
-  const handleDemoDb = useCallback(() => {
-    toast.error("Demo database is not available. Please connect your own data source.");
-  }, []);
+  const handleDemoDb = useCallback(async () => {
+    if (!onActivateDemo) {
+      toast.error("Demo is not available right now.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await onActivateDemo();
+    } finally {
+      setSaving(false);
+    }
+  }, [onActivateDemo]);
 
   const handleFirstQuery = useCallback(async () => {
     if (!query.trim()) return;
@@ -418,7 +429,7 @@ export default function OnboardingWizard({
                     <p className="mt-2 text-xs text-slate-500">
                       {csvFile
                         ? `Selected: ${csvFile.name}`
-                        : "Upload CSV, XLSX, or XLS (max 10MB)."}
+                        : "Upload CSV, XLSX, or XLS (max 4.5MB)."}
                     </p>
                     {sheetBusy && (
                       <p className="mt-2 text-xs text-slate-500">

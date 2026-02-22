@@ -19,7 +19,7 @@ import {
   Share2,
   Sparkles,
 } from "lucide-react";
-import OnboardingWizard from "@/src/components/onboarding/OnboardingWizard";
+import dynamic from "next/dynamic";
 import { useConversationThread } from "@/src/hooks/useConversationThread";
 import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
 
@@ -28,20 +28,21 @@ import Button from "@/src/components/Button";
 import Card, { CardBody } from "@/src/components/Card";
 import CodeBlock from "@/src/components/CodeBlock";
 import EmptyState from "@/src/components/EmptyState";
-import FeatureGrid from "@/src/components/landing/FeatureGrid";
-import HowItWorks from "@/src/components/landing/HowItWorks";
-import MosaicHero from "@/src/components/landing/MosaicHero";
 import QueryInput from "@/src/components/QueryInput";
-import QueryBuilder from "@/src/components/QueryBuilder";
-import SavedQueriesPanel from "@/components/SavedQueriesPanel";
-
-import DeepAnalysisPanel from "@/src/components/DeepAnalysisPanel";
-import InsightPanel from "@/src/components/InsightPanel";
-import ResultsChart from "@/src/components/ResultsChart";
-import ResultsTable from "@/src/components/ResultsTable";
-import DataSummaryPanel from "@/src/components/DataSummaryPanel";
 import { toast } from "@/src/components/ui/Toast";
-import ConnectDatabaseModal from "@/src/components/ConnectDatabaseModal";
+
+const OnboardingWizard = dynamic(() => import("@/src/components/onboarding/OnboardingWizard"));
+const MosaicHero = dynamic(() => import("@/src/components/landing/MosaicHero"));
+const FeatureGrid = dynamic(() => import("@/src/components/landing/FeatureGrid"));
+const HowItWorks = dynamic(() => import("@/src/components/landing/HowItWorks"));
+const QueryBuilder = dynamic(() => import("@/src/components/QueryBuilder"));
+const DataSummaryPanel = dynamic(() => import("@/src/components/DataSummaryPanel"));
+const DeepAnalysisPanel = dynamic(() => import("@/src/components/DeepAnalysisPanel"));
+const InsightPanel = dynamic(() => import("@/src/components/InsightPanel"));
+const ResultsChart = dynamic(() => import("@/src/components/ResultsChart"));
+const ResultsTable = dynamic(() => import("@/src/components/ResultsTable"));
+const SavedQueriesPanel = dynamic(() => import("@/components/SavedQueriesPanel"));
+const ConnectDatabaseModal = dynamic(() => import("@/src/components/ConnectDatabaseModal"));
 import { fetchAccessibleDataSources } from "@/src/lib/datasourceClient";
 import { getAuthHeaders } from "@/lib/uploadUtils";
 import { saveQuery, removeSavedQuery, isQuerySaved, getSavedQueries } from "@/lib/savedQueries";
@@ -323,7 +324,7 @@ export default function HomePage() {
     <>
       {showOnboarding && onboardingChecked ? (
         <div className="py-8 px-2 sm:py-12">
-          <OnboardingWizard onComplete={handleOnboardingComplete} />
+          <OnboardingWizard onComplete={handleOnboardingComplete} onActivateDemo={handleActivateDemo} />
         </div>
       ) : (
         <div className="space-y-12 sm:space-y-16 lg:space-y-20">
@@ -665,21 +666,21 @@ export default function HomePage() {
                 </div>
               )}
 
-              {/* Deep Analysis */}
-              {analysisContext && (
-                <DeepAnalysisPanel
-                  question={analysisContext.question}
-                  datasourceId={analysisContext.datasourceId}
-                />
-              )}
-
-              {/* AI Insights */}
-              {hasRows && result && !analysisContext && (
+              {/* AI Insights — quick summary of retrieved SQL data */}
+              {hasRows && result && (
                 <InsightPanel
                   question={lastQuestion}
                   sql={result.sql}
                   fields={result.fields}
                   rows={result.rows}
+                />
+              )}
+
+              {/* Deep Analysis — runs for analytical questions AND all queries that return data */}
+              {(analysisContext || (hasRows && result && activeDatasourceId)) && (
+                <DeepAnalysisPanel
+                  question={analysisContext?.question ?? lastQuestion}
+                  datasourceId={analysisContext?.datasourceId ?? activeDatasourceId!}
                 />
               )}
             </div>
