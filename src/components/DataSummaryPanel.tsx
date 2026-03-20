@@ -96,7 +96,7 @@ export default function DataSummaryPanel({ datasourceId, datasourceName, onAsk }
       <button
         type="button"
         onClick={toggleCollapsed}
-        className="w-full flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4 hover:bg-white/[0.02] transition-colors text-left"
+        className="w-full flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4 md:px-6 hover:bg-white/[0.02] transition-colors text-left"
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="inline-flex h-7 w-7 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-400">
@@ -126,7 +126,7 @@ export default function DataSummaryPanel({ datasourceId, datasourceName, onAsk }
 
       {/* Expanded body */}
       {!collapsed && (
-        <div className="px-4 pb-4 sm:px-5 sm:pb-5 space-y-4 border-t border-white/[0.04]">
+        <div className="px-4 pb-4 sm:px-5 sm:pb-5 md:px-6 md:pb-6 space-y-4 border-t border-white/[0.04]">
           {loading ? (
             <div className="space-y-3 pt-4">
               <div className="flex items-center gap-2 text-sm text-slate-400">

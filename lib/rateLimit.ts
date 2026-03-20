@@ -62,3 +62,57 @@ export function checkRateLimit(
   win.timestamps.push(now);
   return { ok: true };
 }
+
+/* ─── Global daily AI-call counter ───────────────────────────────────────────
+ *
+ * Tracks total AI/LLM API calls per user per calendar day (UTC).
+ * Prevents a single user from exhausting the entire free-tier quota.
+ * Default: 150 calls/day per user (configurable via AI_DAILY_LIMIT env var).
+ */
+
+const AI_DAILY_LIMIT = parseInt(process.env.AI_DAILY_LIMIT || "150", 10);
+
+type DailyCounter = { day: string; count: number };
+const dailyCounters = new Map<string, DailyCounter>();
+
+function todayUTC(): string {
+  return new Date().toISOString().slice(0, 10); // "YYYY-MM-DD"
+}
+
+/**
+ * Check + increment the daily AI call counter for a user.
+ * Call this before every LLM API request.
+ *
+ * @param userId  Unique user identifier
+ * @param cost    Number of "calls" this operation represents (default 1)
+ * @returns       { ok: true } or { ok: false, remaining: 0 }
+ */
+export function checkAiDailyLimit(
+  userId: string,
+  cost: number = 1
+): { ok: true; remaining: number } | { ok: false; remaining: 0 } {
+  const day = todayUTC();
+  const key = `ai:${userId}`;
+
+  let counter = dailyCounters.get(key);
+  if (!counter || counter.day !== day) {
+    counter = { day, count: 0 };
+    dailyCounters.set(key, counter);
+  }
+
+  if (counter.count + cost > AI_DAILY_LIMIT) {
+    return { ok: false, remaining: 0 };
+  }
+
+  counter.count += cost;
+  return { ok: true, remaining: AI_DAILY_LIMIT - counter.count };
+}
+
+/** Read the current count without incrementing. */
+export function getAiDailyUsage(userId: string): { count: number; limit: number; day: string } {
+  const day = todayUTC();
+  const key = `ai:${userId}`;
+  const counter = dailyCounters.get(key);
+  const count = counter && counter.day === day ? counter.count : 0;
+  return { count, limit: AI_DAILY_LIMIT, day };
+}

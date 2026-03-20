@@ -39,11 +39,11 @@ export default function FeatureGrid({ brandName = DEFAULT_BRAND }: FeatureGridPr
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-5 lg:gap-6">
         {features.map((feature) => (
           <div
             key={feature.title}
-            className="group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-300 hover:bg-white/[0.04] hover:-translate-y-1 hover:border-white/[0.1]"
+            className="group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6 lg:p-7 transition-all duration-300 hover:bg-white/[0.04] hover:-translate-y-1 hover:border-white/[0.1]"
           >
             <div className="relative">
               <div className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.05] text-white">

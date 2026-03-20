@@ -1,52 +1,31 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  MessageSquare,
-  Code2,
-  Table2,
-  BarChart3,
-  LineChart,
-  Download,
-  AlertCircle,
-  Loader2,
-  RotateCcw,
-  Database,
-  FileText,
-  HelpCircle,
-  Bookmark,
-  BookmarkCheck,
-  Share2,
-  Sparkles,
-} from "lucide-react";
 import dynamic from "next/dynamic";
 import { useConversationThread } from "@/src/hooks/useConversationThread";
 import { useFirebaseAuth } from "@/src/hooks/useFirebaseAuth";
 
-import { Skeleton, TableSkeleton } from "@/components/ui/skeleton";
-import Button from "@/src/components/Button";
-import Card, { CardBody } from "@/src/components/Card";
-import CodeBlock from "@/src/components/CodeBlock";
-import EmptyState from "@/src/components/EmptyState";
-import QueryInput from "@/src/components/QueryInput";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/src/components/ui/Toast";
+import QueryInputCard from "@/src/components/QueryInputCard";
+import OffTopicCard from "@/src/components/OffTopicCard";
+import ResultsCard from "@/src/components/ResultsCard";
+import SqlCollapsible from "@/src/components/SqlCollapsible";
+import PrintReportHeader from "@/src/components/PrintReportHeader";
 
 const OnboardingWizard = dynamic(() => import("@/src/components/onboarding/OnboardingWizard"));
 const MosaicHero = dynamic(() => import("@/src/components/landing/MosaicHero"));
 const FeatureGrid = dynamic(() => import("@/src/components/landing/FeatureGrid"));
 const HowItWorks = dynamic(() => import("@/src/components/landing/HowItWorks"));
-const QueryBuilder = dynamic(() => import("@/src/components/QueryBuilder"));
 const DataSummaryPanel = dynamic(() => import("@/src/components/DataSummaryPanel"));
 const DeepAnalysisPanel = dynamic(() => import("@/src/components/DeepAnalysisPanel"));
 const InsightPanel = dynamic(() => import("@/src/components/InsightPanel"));
-const ResultsChart = dynamic(() => import("@/src/components/ResultsChart"));
-const ResultsTable = dynamic(() => import("@/src/components/ResultsTable"));
 const SavedQueriesPanel = dynamic(() => import("@/components/SavedQueriesPanel"));
 const ConnectDatabaseModal = dynamic(() => import("@/src/components/ConnectDatabaseModal"));
+
 import { fetchAccessibleDataSources } from "@/src/lib/datasourceClient";
 import { getAuthHeaders } from "@/lib/uploadUtils";
 import { saveQuery, removeSavedQuery, isQuerySaved, getSavedQueries } from "@/lib/savedQueries";
-import type { ChartDisplayType } from "@/src/components/Chart";
 
 type QueryResult = {
   sql: string;
@@ -84,9 +63,6 @@ export default function HomePage() {
   const [hasDatasource, setHasDatasource] = useState(false);
   const [activeDatasourceId, setActiveDatasourceId] = useState<string | null>(null);
   const [activeDatasourceName, setActiveDatasourceName] = useState<string | undefined>(undefined);
-  const [view, setView] = useState<"table" | "chart">("chart");
-  const [showSql, setShowSql] = useState(false);
-  const [chartType, setChartType] = useState<ChartDisplayType>("auto");
   const [savedRefreshKey, setSavedRefreshKey] = useState(0);
   const [currentQuestionSaved, setCurrentQuestionSaved] = useState(false);
   const [isActivatingDemo, setIsActivatingDemo] = useState(false);
@@ -168,7 +144,6 @@ export default function HomePage() {
     const q = new URLSearchParams(window.location.search).get("q");
     if (!q) return;
     window.history.replaceState({}, "", window.location.pathname);
-    // Small delay so datasource can resolve first
     const t = setTimeout(() => onAsk(q), 300);
     return () => clearTimeout(t);
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -213,6 +188,15 @@ export default function HomePage() {
     }
   }, [syncFromLocalStorage]);
 
+  const handleClearThread = useCallback(() => {
+    clearThread();
+    setResult(null);
+    setAnalysisContext(null);
+    setOffTopic(null);
+    setError(null);
+    setLastQuestion("");
+  }, [clearThread]);
+
   const onAsk = useCallback(
     async (rawPrompt: string) => {
       const prompt = rawPrompt.trim();
@@ -223,7 +207,6 @@ export default function HomePage() {
       setResult(null);
       setOffTopic(null);
       setLastQuestion(prompt);
-      setChartType("auto");
       setCurrentQuestionSaved(isQuerySaved(prompt));
 
       try {
@@ -306,7 +289,6 @@ export default function HomePage() {
   const downloadPdf = useCallback(() => { window.print(); }, []);
 
   const hasRows = useMemo(() => Boolean(result?.rows && result.rows.length > 0), [result]);
-  const handleViewChange = useCallback((next: "table" | "chart") => setView(next), []);
 
   if (loading) {
     return (
@@ -323,22 +305,22 @@ export default function HomePage() {
   return (
     <>
       {showOnboarding && onboardingChecked ? (
-        <div className="py-8 px-2 sm:py-12">
+        <div className="py-8 px-2 sm:py-12 md:px-4 md:py-14">
           <OnboardingWizard onComplete={handleOnboardingComplete} onActivateDemo={handleActivateDemo} />
         </div>
       ) : (
-        <div className="space-y-12 sm:space-y-16 lg:space-y-20">
+        <div className="space-y-12 sm:space-y-16 md:space-y-18 lg:space-y-20">
           <div className="divider-gradient" />
           <FeatureGrid brandName="Data Vista" />
           <div className="divider-gradient" />
           <HowItWorks brandName="Data Vista" />
 
           {/* Ask Section */}
-          <section id="ask" className="scroll-mt-24 space-y-4 sm:space-y-6">
+          <section id="ask" className="scroll-mt-24 space-y-4 sm:space-y-6 md:space-y-7 lg:space-y-8">
 
             {/* Section heading — hidden on mobile to save space */}
             <div className="hidden sm:block text-center mb-2 no-print">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-grape-400 mb-3">Real-time intelligence</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-grape-300 mb-3">Real-time intelligence</p>
               <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-[-0.02em]">
                 What do you want to know?
               </h2>
@@ -347,7 +329,7 @@ export default function HomePage() {
               </p>
             </div>
 
-            {/* ── Persistent Data Summary Panel ── */}
+            {/* Persistent Data Summary Panel */}
             {hasDatasource && activeDatasourceId && (
               <DataSummaryPanel
                 key={activeDatasourceId}
@@ -357,316 +339,42 @@ export default function HomePage() {
               />
             )}
 
-            {/* ── Query Input Card ── */}
-            <Card className="no-print">
-              <CardBody>
-                {/* Header row */}
-                <div className="mb-3 flex items-start justify-between gap-2">
-                  <div className="flex items-start gap-2 min-w-0">
-                    <div className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/[0.05] text-white">
-                      <MessageSquare className="h-3.5 w-3.5" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-white leading-tight">
-                        {hasDatasource ? "Ask your data" : "Connect your data"}
-                      </p>
-                      <p className="text-xs text-grape-400 mt-0.5 leading-tight">
-                        {hasDatasource
-                          ? "Insights, trends, forecasts — plain English"
-                          : "Connect a database or upload a spreadsheet"}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant={hasDatasource ? "secondary" : "primary"}
-                    onClick={() => setShowConnectModal(true)}
-                    className="shrink-0 text-xs !px-2.5 !py-1.5"
-                  >
-                    <Database className="h-3.5 w-3.5" />
-                    <span className="hidden xs:inline sm:inline">
-                      {hasDatasource ? "Switch Source" : "Connect"}
-                    </span>
-                  </Button>
-                </div>
+            {/* Query Input */}
+            <QueryInputCard
+              hasDatasource={hasDatasource}
+              inputMode={inputMode}
+              setInputMode={setInputMode}
+              threadLength={thread.length}
+              onClearThread={handleClearThread}
+              onAsk={onAsk}
+              busy={busy}
+              error={error}
+              isActivatingDemo={isActivatingDemo}
+              onActivateDemo={handleActivateDemo}
+              onConnectClick={() => setShowConnectModal(true)}
+            />
 
-                {!hasDatasource && (
-                  <div className="text-center py-6 sm:py-8">
-                    <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-white/[0.04] flex items-center justify-center">
-                      <Database className="h-5 w-5 text-grape-400" />
-                    </div>
-                    <p className="font-semibold text-base text-white mb-1">Connect your data to get started</p>
-                    <p className="text-sm text-grape-400 mb-4 max-w-xs mx-auto">
-                      Link your database and start getting real-time insights instantly.
-                    </p>
-                    <div className="flex flex-col sm:flex-row items-center gap-2 justify-center">
-                      <Button variant="primary" onClick={() => setShowConnectModal(true)}>
-                        <Database className="h-4 w-4" />
-                        Connect a Database
-                      </Button>
-                      <Button variant="secondary" onClick={handleActivateDemo} disabled={isActivatingDemo}>
-                        {isActivatingDemo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                        Try Sample Data
-                      </Button>
-                    </div>
-                    <div className="mt-4 flex flex-col sm:flex-row flex-wrap gap-2 items-center justify-center">
-                      {["Total sales last month?", "Next quarter revenue?", "Customers at risk?"].map((ex) => (
-                        <span key={ex} className="px-2.5 py-1 rounded-full border border-white/[0.06] bg-white/[0.02] text-grape-400 text-xs">
-                          {ex}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+            {/* Off-topic response */}
+            {offTopic && !busy && <OffTopicCard offTopic={offTopic} />}
 
-                {/* Input mode toggle */}
-                {hasDatasource && (
-                  <div className="mb-3 flex items-center gap-1.5">
-                    {(["text", "builder"] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => setInputMode(mode)}
-                        className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-all ${
-                          inputMode === mode
-                            ? "border-white/[0.15] bg-white/[0.06] text-white"
-                            : "border-white/[0.06] text-grape-400 hover:text-grape-300"
-                        }`}
-                      >
-                        {mode === "text" ? "Type a question" : "Use the builder"}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {inputMode === "text" ? (
-                  <>
-                    {thread.length > 0 && (
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <p className="text-xs text-grape-300">
-                          Follow-up · {thread.length} {thread.length === 1 ? "turn" : "turns"}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            clearThread();
-                            setResult(null);
-                            setAnalysisContext(null);
-                            setOffTopic(null);
-                            setError(null);
-                            setLastQuestion("");
-                          }}
-                          className="flex items-center gap-1 text-xs text-grape-400 hover:text-white transition"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          New
-                        </button>
-                      </div>
-                    )}
-                    <QueryInput onSubmit={onAsk} threadLength={thread.length} />
-                  </>
-                ) : (
-                  <QueryBuilder onSubmit={onAsk} />
-                )}
-
-                {busy && (
-                  <div className="mt-3 flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-2.5">
-                    <Loader2 className="h-4 w-4 text-grape-300 animate-spin shrink-0" />
-                    <p className="text-sm text-grape-200" aria-live="polite">
-                      Analyzing your data…
-                    </p>
-                  </div>
-                )}
-
-                {error && (
-                  <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2.5">
-                    <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-                    <p role="alert" className="text-sm text-red-300" aria-live="polite">{error}</p>
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-
-            {/* ── Off-topic response ── */}
-            {offTopic && !busy && (
-              <Card className="no-print">
-                <CardBody>
-                  <div className="flex items-start gap-3">
-                    <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-400">
-                      <HelpCircle className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white mb-1">
-                        That question isn&apos;t in your data
-                      </p>
-                      <p className="text-sm text-slate-300 leading-relaxed mb-3">
-                        {offTopic.reason}
-                      </p>
-                      {offTopic.availableTables.length > 0 && (
-                        <>
-                          <p className="text-xs text-grape-400 mb-2 uppercase tracking-wide font-medium">
-                            Your data covers
-                          </p>
-                          <div className="flex flex-wrap gap-1.5 mb-2">
-                            {offTopic.availableTables.map((t) => (
-                              <span key={t} className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs text-grape-300">
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                          <p className="text-xs text-grape-500">
-                            Ask about the tables above, or switch your data source.
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </CardBody>
-              </Card>
-            )}
-
-            {/* ── Results (print section) ── */}
+            {/* Results (print section) */}
             <div ref={printSectionRef} data-print-section>
+              <PrintReportHeader lastQuestion={lastQuestion} />
 
-              {/* Print-only report header */}
-              <div className="print-report-header hidden">
-                <h1>Data Insights Report</h1>
-                <p>Generated on {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</p>
-                {lastQuestion && (
-                  <p style={{ marginTop: 6, fontWeight: 600, color: "#111827" }}>
-                    Question: {lastQuestion}
-                  </p>
-                )}
-              </div>
+              <ResultsCard
+                result={result}
+                busy={busy}
+                lastQuestion={lastQuestion}
+                currentQuestionSaved={currentQuestionSaved}
+                onDownloadCsv={downloadCsv}
+                onDownloadPdf={downloadPdf}
+                onShare={handleShare}
+                onToggleSave={handleToggleSave}
+              />
 
-              <Card>
-                <CardBody>
-                  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-white/[0.05] text-white">
-                        <Table2 className="h-3.5 w-3.5" />
-                      </div>
-                      <p className="text-sm font-semibold text-white">Results</p>
-                      {hasRows && result && (
-                        <span className="text-xs text-grape-400">
-                          ({result.rows.length} {result.rows.length === 1 ? "row" : "rows"})
-                        </span>
-                      )}
-                    </div>
-                    {hasRows && (
-                      <div className="flex items-center gap-1.5 flex-wrap no-print">
-                        {/* View toggle */}
-                        {(["chart", "table"] as const).map((v) => (
-                          <button
-                            key={v}
-                            type="button"
-                            onClick={() => handleViewChange(v)}
-                            aria-pressed={view === v}
-                            className={`flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all ${
-                              view === v
-                                ? "border-white/[0.15] bg-white/[0.06] text-white"
-                                : "border-white/[0.06] text-grape-400 hover:border-white/[0.1] hover:text-white"
-                            }`}
-                          >
-                            {v === "chart"
-                              ? <><BarChart3 className="h-3.5 w-3.5" /><span>Chart</span></>
-                              : <><Table2 className="h-3.5 w-3.5" /><span>Table</span></>}
-                          </button>
-                        ))}
-                        {/* Chart type selector — only visible when chart view is active */}
-                        {view === "chart" && (
-                          <div className="flex items-center gap-1 border-l border-white/[0.06] pl-1.5">
-                            {(["auto", "bar", "line"] as const).map((ct) => (
-                              <button
-                                key={ct}
-                                type="button"
-                                title={`${ct === "auto" ? "Auto-detect" : ct === "bar" ? "Bar chart" : "Line chart"}`}
-                                onClick={() => setChartType(ct)}
-                                className={`flex items-center justify-center rounded-lg border p-1.5 transition-all ${
-                                  chartType === ct
-                                    ? "border-white/[0.15] bg-white/[0.06] text-white"
-                                    : "border-transparent text-grape-500 hover:text-grape-300"
-                                }`}
-                              >
-                                {ct === "line"
-                                  ? <LineChart className="h-3.5 w-3.5" />
-                                  : <BarChart3 className="h-3.5 w-3.5" />}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+              <SqlCollapsible sql={result?.sql} busy={busy} />
 
-                  {busy && !result?.rows ? (
-                    <TableSkeleton rows={5} cols={result?.fields?.length || 4} />
-                  ) : hasRows && result ? (
-                    <div className="space-y-4 print-keep-together">
-                      <div className={view === "chart" ? "block" : "hidden print:block"}>
-                        <ResultsChart fields={result.fields} rows={result.rows} chartType={chartType} />
-                      </div>
-                      <div className={view === "table" ? "block" : "hidden print:block"}>
-                        <ResultsTable fields={result.fields} rows={result.rows} />
-                      </div>
-                    </div>
-                  ) : (
-                    <EmptyState
-                      title="No results yet"
-                      message="Ask a question above — insights and charts will appear here."
-                    />
-                  )}
-
-                  {hasRows && (
-                    <div className="mt-4 flex flex-col sm:flex-row gap-2 flex-wrap no-print">
-                      <Button onClick={downloadCsv} variant="secondary" className="w-full sm:w-auto">
-                        <Download className="h-4 w-4" />
-                        Download Spreadsheet
-                      </Button>
-                      <Button onClick={downloadPdf} variant="secondary" className="w-full sm:w-auto">
-                        <FileText className="h-4 w-4" />
-                        Download PDF
-                      </Button>
-                      <Button onClick={handleShare} variant="secondary" className="w-full sm:w-auto" title="Copy a shareable link pre-filled with this question">
-                        <Share2 className="h-4 w-4" />
-                        Share
-                      </Button>
-                      <Button onClick={handleToggleSave} variant="secondary" className="w-full sm:w-auto" title={currentQuestionSaved ? "Remove from saved queries" : "Save this question"}>
-                        {currentQuestionSaved ? <BookmarkCheck className="h-4 w-4 text-amber-400" /> : <Bookmark className="h-4 w-4" />}
-                        {currentQuestionSaved ? "Saved" : "Save"}
-                      </Button>
-                    </div>
-                  )}
-                </CardBody>
-              </Card>
-
-              {/* SQL collapsible */}
-              {(result?.sql || busy) && (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] no-print">
-                  <button
-                    type="button"
-                    onClick={() => setShowSql(!showSql)}
-                    className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-white/[0.02] transition-colors rounded-xl"
-                  >
-                    <div className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/[0.04] text-grape-400">
-                      <Code2 className="h-3 w-3" />
-                    </div>
-                    <p className="text-xs font-medium text-grape-300 flex-1">
-                      {showSql ? "Hide" : "Show"} query (advanced)
-                    </p>
-                    <svg className={`h-4 w-4 text-grape-400 transition-transform ${showSql ? "rotate-180" : ""}`}
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </button>
-                  {showSql && (
-                    <div className="px-4 pb-4">
-                      {result?.sql ? <CodeBlock code={result.sql} /> : null}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* AI Insights — quick summary of retrieved SQL data */}
+              {/* AI Insights */}
               {hasRows && result && (
                 <InsightPanel
                   question={lastQuestion}
@@ -676,7 +384,7 @@ export default function HomePage() {
                 />
               )}
 
-              {/* Deep Analysis — runs for analytical questions AND all queries that return data */}
+              {/* Deep Analysis */}
               {(analysisContext || (hasRows && result && activeDatasourceId)) && (
                 <DeepAnalysisPanel
                   question={analysisContext?.question ?? lastQuestion}
@@ -702,7 +410,6 @@ export default function HomePage() {
           setShowConnectModal(false);
           syncFromLocalStorage();
           toast.success("Data source connected!");
-          // Resolve name for the newly connected source
           try {
             const id = localStorage.getItem("datasourceId");
             if (id) {

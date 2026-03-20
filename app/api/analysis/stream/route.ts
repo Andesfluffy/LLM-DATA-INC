@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 
 import { getUserFromRequest } from "@/lib/auth-server";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, checkAiDailyLimit } from "@/lib/rateLimit";
 import { ensureUser, findAccessibleDataSource } from "@/lib/userOrg";
 import { getConnector } from "@/lib/connectors/registry";
 import { getGuardrails } from "@/lib/connectors/guards";
@@ -27,6 +27,15 @@ export async function POST(req: NextRequest) {
     return new Response(
       JSON.stringify({ error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds before trying again.` }),
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    );
+  }
+
+  // Deep analysis costs ~5 AI calls (context queries + analysis stream)
+  const daily = checkAiDailyLimit(userAuth.uid, 5);
+  if (!daily.ok) {
+    return new Response(
+      JSON.stringify({ error: "You've reached your daily query limit. Please try again tomorrow." }),
+      { status: 429 }
     );
   }
 

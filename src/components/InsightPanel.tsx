@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback } from "react";
 import { Sparkles, Loader2, TrendingUp, TrendingDown, Minus } from "lucide-react";
 import Card, { CardBody } from "@/src/components/Card";
 import Button from "@/src/components/Button";
@@ -26,14 +26,7 @@ export default function InsightPanel({ question, sql, fields, rows }: InsightPan
     generate({ question, sql, fields, rows });
   }, [generate, question, sql, fields, rows]);
 
-  // Auto-generate insights when the panel mounts (new results arrive)
-  const autoTriggered = useRef(false);
-  useEffect(() => {
-    if (!autoTriggered.current && rows.length > 0) {
-      autoTriggered.current = true;
-      generate({ question, sql, fields, rows });
-    }
-  }, [generate, question, sql, fields, rows]);
+  // Insights are now opt-in — user clicks "Generate Insights" to save AI quota
 
   return (
     <Card>
@@ -72,7 +65,7 @@ export default function InsightPanel({ question, sql, fields, rows }: InsightPan
           </div>
         ) : !loading ? (
           <p className="text-sm text-slate-500">
-            AI will automatically summarize your results in plain language.
+            Click &ldquo;Generate Insights&rdquo; for an AI-powered summary of your results.
           </p>
         ) : (
           <div className="flex items-center gap-2 text-sm text-slate-400">

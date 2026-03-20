@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { z } from "zod";
 
 import { getUserFromRequest } from "@/lib/auth-server";
-import { checkRateLimit } from "@/lib/rateLimit";
+import { checkRateLimit, checkAiDailyLimit } from "@/lib/rateLimit";
 import { buildDatasetOverviewResult, isDatasetOverviewQuestion } from "@/lib/datasetOverview";
 import { getGuardrails } from "@/lib/connectors/guards";
 import { getConnector } from "@/lib/connectors/registry";
@@ -36,6 +36,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       { error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds before trying again.` },
       { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    );
+  }
+
+  const daily = checkAiDailyLimit(userAuth.uid);
+  if (!daily.ok) {
+    return NextResponse.json(
+      { error: "You've reached your daily query limit. Please try again tomorrow or upgrade your plan." },
+      { status: 429 }
     );
   }
 

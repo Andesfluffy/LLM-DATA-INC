@@ -1,6 +1,4 @@
-import { genAI } from "@/lib/gemini";
-
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+import { aiGenerate, aiStreamGemini } from "@/lib/ai";
 
 // Patterns that signal a question needs deep analysis (predictions, recommendations, causal reasoning,
 // pattern interpretation) rather than a simple SQL data retrieval.
@@ -88,19 +86,13 @@ export async function generateContextQueries(
   const dbName =
     dialect === "mysql" ? "MySQL" : dialect === "sqlite" ? "SQLite" : "PostgreSQL";
 
-  const model = genAI.getGenerativeModel({
-    model: MODEL,
-    systemInstruction: `You are a data analyst planning an analysis. Given an analytical question and a database schema, generate 2–5 ${dbName} SELECT queries that together provide the data needed to answer the question comprehensively. Focus on: historical trends over time, distributions across categories, top/bottom performers, year-over-year comparisons, aggregates by region or category, and any correlations relevant to the question. Rules: (1) Output ONLY a valid JSON array of SQL strings — no markdown, no code fences, no explanation. (2) Every query must be SELECT-only — no INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE. (3) Add LIMIT 100 to each non-aggregating query. (4) Prefer explicit column names over SELECT *. (5) If the schema does not support the question at all, return an empty array [].`,
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.1,
-    },
+  const result = await aiGenerate({
+    system: `You are a data analyst planning an analysis. Given an analytical question and a database schema, generate 2–5 ${dbName} SELECT queries that together provide the data needed to answer the question comprehensively. Focus on: historical trends over time, distributions across categories, top/bottom performers, year-over-year comparisons, aggregates by region or category, and any correlations relevant to the question. Rules: (1) Output ONLY a valid JSON array of SQL strings — no markdown, no code fences, no explanation. (2) Every query must be SELECT-only — no INSERT, UPDATE, DELETE, DROP, ALTER, CREATE, TRUNCATE. (3) Add LIMIT 100 to each non-aggregating query. (4) Prefer explicit column names over SELECT *. (5) If the schema does not support the question at all, return an empty array [].`,
+    prompt: `SCHEMA:\n${schema}\n\nANALYTICAL QUESTION: ${question}\n\nGenerate SQL queries to gather the data needed. Return a JSON array of SQL strings only.`,
+    temperature: 0.1,
+    json: true,
   });
-
-  const prompt = `SCHEMA:\n${schema}\n\nANALYTICAL QUESTION: ${question}\n\nGenerate SQL queries to gather the data needed. Return a JSON array of SQL strings only.`;
-
-  const result = await model.generateContent(prompt);
-  const raw = result.response.text().trim();
+  const raw = result.text.trim();
 
   try {
     const parsed = JSON.parse(raw);
@@ -183,7 +175,7 @@ export async function* streamDeepAnalysis(params: {
     return;
   }
 
-  const userMsg = `QUESTION: ${question}
+  const prompt = `QUESTION: ${question}
 
 DATABASE SCHEMA:
 ${schema}
@@ -193,15 +185,10 @@ ${formattedData}
 
 Please provide a comprehensive analysis answering the question based strictly on the data above.`;
 
-  const model = genAI.getGenerativeModel({
-    model: MODEL,
-    systemInstruction: ANALYSIS_SYSTEM_PROMPT,
-    generationConfig: { temperature: 0.3 },
+  // Deep analysis uses Gemini specifically for higher quality reasoning & streaming
+  yield* aiStreamGemini({
+    system: ANALYSIS_SYSTEM_PROMPT,
+    prompt,
+    temperature: 0.3,
   });
-
-  const stream = await model.generateContentStream(userMsg);
-  for await (const chunk of stream.stream) {
-    const text = chunk.text();
-    if (text) yield text;
-  }
 }

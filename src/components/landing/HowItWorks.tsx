@@ -34,11 +34,11 @@ export default function HowItWorks({ brandName = DEFAULT_BRAND }: HowItWorksProp
         </h2>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6 lg:gap-7">
         {steps.map((step, index) => (
           <div
             key={step.title}
-            className="group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 transition-all duration-300 hover:-translate-y-1 hover:border-white/[0.1]"
+            className="group relative rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5 md:p-6 lg:p-7 transition-all duration-300 hover:-translate-y-1 hover:border-white/[0.1]"
           >
             <div className="flex items-center gap-3 mb-4">
               <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.04] text-white text-sm font-bold">

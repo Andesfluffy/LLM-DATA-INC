@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { genAI } from "@/lib/gemini";
+import { aiGenerate } from "@/lib/ai";
 import { getUserFromRequest } from "@/lib/auth-server";
+import { checkRateLimit, checkAiDailyLimit } from "@/lib/rateLimit";
 import { ensureUser, findAccessibleDataSource } from "@/lib/userOrg";
 import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { getConnector } from "@/lib/connectors/registry";
@@ -8,19 +9,34 @@ import "@/lib/connectors/init";
 import { z } from "zod";
 import crypto from "crypto";
 
-const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-
 type SuggestResult = {
   description: string;
   suggestions: string[];
 };
 
-// Cache for 10 minutes per datasource+schema hash
+// Cache for 60 minutes per datasource+schema hash
 const suggestCache = new Map<string, { data: SuggestResult; expiresAt: number }>();
 
 export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // 5 suggestion requests per minute per user (cached, so rarely hit)
+  const rl = checkRateLimit(`suggest:${user.uid}`, 5, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds.` },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    );
+  }
+
+  const daily = checkAiDailyLimit(user.uid);
+  if (!daily.ok) {
+    return NextResponse.json(
+      { error: "You've reached your daily query limit. Please try again tomorrow." },
+      { status: 429 }
+    );
+  }
 
   const Body = z.object({ datasourceId: z.string().min(1) });
   const parsed = Body.safeParse(await req.json());
@@ -50,9 +66,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(cached.data);
     }
 
-    const suggestModel = genAI.getGenerativeModel({
-      model: MODEL,
-      systemInstruction: `You are a data assistant helping business users understand what they can query. Given a database schema, write a plain-language summary of what data is available and generate exactly 5 SQL-answerable business questions.
+    const suggestResult = await aiGenerate({
+      system: `You are a data assistant helping business users understand what they can query. Given a database schema, write a plain-language summary of what data is available and generate exactly 5 SQL-answerable business questions.
 
 STRICT RULES for questions:
 - Every question MUST be directly answerable by a single SELECT query against the schema (counts, sums, averages, rankings, breakdowns, comparisons, filters by date/category)
@@ -61,13 +76,11 @@ STRICT RULES for questions:
 - Good question types: "Which [entity] had the highest [metric]?", "How many [items] in [period]?", "Show [metric] broken down by [category]", "What is the total [metric] for [filter]?", "Top N [entities] by [metric]"
 
 Respond ONLY with valid JSON in this exact shape: {"description": "...", "suggestions": ["q1", "q2", "q3", "q4", "q5"]}`,
-      generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
+      prompt: `SCHEMA:\n${schema}\n\nWrite a 2-3 sentence plain-language description of this data (mention key topics, not technical column names). Then provide exactly 5 questions that are directly answerable by SELECT queries against this specific schema — counts, rankings, breakdowns, and comparisons only. Each question must map to real tables and columns visible above. No predictions, no recommendations, no "why" questions.`,
+      temperature: 0.2,
+      json: true,
     });
-
-    const suggestResult = await suggestModel.generateContent(
-      `SCHEMA:\n${schema}\n\nWrite a 2-3 sentence plain-language description of this data (mention key topics, not technical column names). Then provide exactly 5 questions that are directly answerable by SELECT queries against this specific schema — counts, rankings, breakdowns, and comparisons only. Each question must map to real tables and columns visible above. No predictions, no recommendations, no "why" questions.`
-    );
-    const content = suggestResult.response.text() ?? "{}";
+    const content = suggestResult.text ?? "{}";
     let result: SuggestResult;
     try {
       const parsed = JSON.parse(content) as Partial<SuggestResult>;
@@ -79,7 +92,7 @@ Respond ONLY with valid JSON in this exact shape: {"description": "...", "sugges
       result = { description: "Your data source is connected.", suggestions: [] };
     }
 
-    suggestCache.set(cacheKey, { data: result, expiresAt: Date.now() + 10 * 60_000 });
+    suggestCache.set(cacheKey, { data: result, expiresAt: Date.now() + 60 * 60_000 });
     return NextResponse.json(result);
   } finally {
     await client.disconnect();

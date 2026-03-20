@@ -1,4 +1,4 @@
-import { genAI, pickModel } from "@/lib/gemini";
+import { aiGenerate, aiStream } from "@/lib/ai";
 
 export type InsightParams = {
   question: string;
@@ -54,22 +54,13 @@ export async function generateInsights(params: InsightParams): Promise<InsightRe
   const data = truncateData(params.fields, params.rows);
   const totalRows = params.rows.length;
 
-  const userMsg = `Question: ${params.question}
+  const prompt = `Question: ${params.question}
 SQL: ${params.sql}
 Data (${totalRows} total rows${totalRows > MAX_ROWS ? `, showing first ${MAX_ROWS}` : ""}):
 ${data}`;
 
-  const model = genAI.getGenerativeModel({
-    model: pickModel(),
-    systemInstruction: SYSTEM_PROMPT,
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.2,
-    },
-  });
-
-  const result = await model.generateContent(userMsg);
-  const raw = result.response.text() || "{}";
+  const result = await aiGenerate({ system: SYSTEM_PROMPT, prompt, temperature: 0.2, json: true });
+  const raw = result.text || "{}";
   try {
     const parsed = JSON.parse(raw);
     return {
@@ -86,22 +77,16 @@ export async function* streamInsights(params: InsightParams): AsyncGenerator<str
   const data = truncateData(params.fields, params.rows);
   const totalRows = params.rows.length;
 
-  const userMsg = `Question: ${params.question}
+  const prompt = `Question: ${params.question}
 SQL: ${params.sql}
 Data (${totalRows} total rows${totalRows > MAX_ROWS ? `, showing first ${MAX_ROWS}` : ""}):
 ${data}
 
 Provide a concise, insightful analysis directly answering the question. Include specific numbers. Highlight key trends and actionable observations. Use plain English, not JSON.`;
 
-  const model = genAI.getGenerativeModel({
-    model: pickModel(),
-    systemInstruction: "You are a data analyst. Provide clear, concise insights from query results. Lead with the direct answer, then add 2-3 key observations. Use specific numbers.",
-    generationConfig: { temperature: 0.2 },
+  yield* aiStream({
+    system: "You are a data analyst. Provide clear, concise insights from query results. Lead with the direct answer, then add 2-3 key observations. Use specific numbers.",
+    prompt,
+    temperature: 0.2,
   });
-
-  const stream = await model.generateContentStream(userMsg);
-  for await (const chunk of stream.stream) {
-    const text = chunk.text();
-    if (text) yield text;
-  }
 }

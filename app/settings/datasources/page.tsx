@@ -386,16 +386,16 @@ export default function DataSourcesSettingsPage() {
             <div className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/[0.05] text-grape-300 icon-glow">
               <Database className="h-5 w-5" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Data Sources</h1>
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight">Data Sources</h1>
           </div>
           <p className="text-grape-300 text-sm max-w-lg">
             Connect your data so you can start asking questions. You can either connect a database (ask your IT team for the details) or upload a spreadsheet (CSV or Excel).
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Connection form - takes 2 columns */}
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2 lg:col-span-2">
             <Card>
               <CardHeader
                 title="Connection Details"
@@ -432,7 +432,7 @@ export default function DataSourcesSettingsPage() {
                           onClick={() => {
                             setForm((prev) => ({ ...prev, type, port: portDefaults[type] || prev.port }));
                           }}
-                          className={`rounded-lg border px-3 py-2 text-xs sm:px-4 sm:text-sm font-medium transition-all ${
+                          className={`rounded-lg border px-3 py-2 text-xs sm:px-4 sm:text-sm md:px-5 font-medium transition-all ${
                             form.type === type
                               ? "border-white/[0.1] bg-white/[0.05] text-white"
                               : "border-white/[0.08] text-grape-300 hover:border-white/[0.1] hover:text-white"
