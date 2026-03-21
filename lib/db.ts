@@ -33,18 +33,43 @@ export function setAppPrismaClientForTesting(client: PrismaClientLike | null) {
   }
 }
 
-// Cache Prisma clients per URL for data source querying
-const clientCache = new Map<string, PrismaClientLike>();
+// Cache Prisma clients per URL — bounded LRU with TTL to prevent connection leaks.
+const MAX_CACHED_CLIENTS = 20;
+const CLIENT_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const clientCache = new Map<string, { client: PrismaClientLike; lastUsed: number }>();
+
+function evictStaleClients() {
+  const now = Date.now();
+  for (const [url, entry] of clientCache) {
+    if (now - entry.lastUsed > CLIENT_TTL_MS) {
+      entry.client.$disconnect().catch(() => {});
+      clientCache.delete(url);
+    }
+  }
+  // If still over limit, evict oldest
+  if (clientCache.size > MAX_CACHED_CLIENTS) {
+    let oldest: [string, { lastUsed: number }] | null = null;
+    for (const [url, entry] of clientCache) {
+      if (!oldest || entry.lastUsed < oldest[1].lastUsed) oldest = [url, entry];
+    }
+    if (oldest) {
+      (clientCache.get(oldest[0]) as any)?.client?.$disconnect().catch(() => {});
+      clientCache.delete(oldest[0]);
+    }
+  }
+}
 
 export function getPrismaForUrl(url: string): PrismaClientLike {
-  if (!clientCache.has(url)) {
-    const { PrismaClient } = require("@prisma/client");
-    clientCache.set(
-      url,
-      new PrismaClient({ datasources: { db: { url } } })
-    );
+  const existing = clientCache.get(url);
+  if (existing) {
+    existing.lastUsed = Date.now();
+    return existing.client;
   }
-  return clientCache.get(url)!;
+  evictStaleClients();
+  const { PrismaClient } = require("@prisma/client");
+  const client = new PrismaClient({ datasources: { db: { url } } });
+  clientCache.set(url, { client, lastUsed: Date.now() });
+  return client;
 }
 
 export async function getActiveDataSourceUrlForUser(userId: string): Promise<string> {

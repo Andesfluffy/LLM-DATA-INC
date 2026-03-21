@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
   let factory;
   try {
     factory = getConnector(type);
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || "Unsupported connector type" }, { status: 400 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unsupported connector type" }, { status: 400 });
   }
 
   const validation = factory.validateParams(body as Record<string, unknown>);
@@ -109,11 +109,7 @@ export async function POST(req: NextRequest) {
           port,
           database,
           user,
-          ...(usesPassword ? passwordFields : {
-            passwordCiphertext: null,
-            passwordIv: null,
-            passwordTag: null,
-          }),
+          ...(usesPassword ? passwordFields : {}),
           metadata: type === "sqlite" ? null : existing.metadata,
           urlCiphertext: null,
           urlIv: null,

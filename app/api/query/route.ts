@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 20 queries per minute per user
-  const rl = checkRateLimit(`query:${userAuth.uid}`, 20, 60_000);
+  const rl = await checkRateLimit(`query:${userAuth.uid}`, 20, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
       { error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds before trying again.` },
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const daily = checkAiDailyLimit(userAuth.uid);
+  const daily = await checkAiDailyLimit(userAuth.uid);
   if (!daily.ok) {
     return NextResponse.json(
       { error: "You've reached your daily query limit. Please try again tomorrow or upgrade your plan." },
@@ -160,9 +160,9 @@ export async function POST(req: NextRequest) {
     await logAuditEvent({ userId: dbUser.id, action: "report.generated", question, sql, durationMs, rowCount: result.rowCount, targetType: "datasource", targetId: ds.id });
 
     return NextResponse.json({ sql, fields: result.fields, rows: result.rows });
-  } catch (e: any) {
-    const msg = String(e?.message || e);
-    console.error("[query] Error for datasource", datasourceId, ":", msg, e?.stack || "");
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[query] Error for datasource", datasourceId, ":", msg);
     const isTimeout = /statement timeout|canceling statement|max_execution_time|timed? ?out/i.test(msg);
     const isConnection = /ECONNREFUSED|ENOTFOUND|ENOENT|ETIMEDOUT|connection refused|connect ECONNREFUSED|no such file or directory/i.test(msg);
     const isSyntax = /syntax error|column .* does not exist|relation .* does not exist|undefined column|no such column|no such table|near ".*?": |sqlite_error|table .* not found/i.test(msg);

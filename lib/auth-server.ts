@@ -27,7 +27,7 @@ export async function getUserFromRequest(req: NextRequest): Promise<AuthUser> {
   try {
     const token = await verifyIdToken(m[1]!);
     return { uid: token.uid, email: token.email || null };
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Dev-mode bypass: if token verification fails in dev, fall back to test user
     if (process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS === "true") {
       return { uid: "dev-test-user", email: "dev@test.local" };
@@ -35,7 +35,7 @@ export async function getUserFromRequest(req: NextRequest): Promise<AuthUser> {
     if (process.env.NODE_ENV !== "production") {
       console.error(
         "[auth-server] Token verification failed:",
-        error?.message || String(error)
+        error instanceof Error ? error.message : String(error)
       );
     }
     return null;

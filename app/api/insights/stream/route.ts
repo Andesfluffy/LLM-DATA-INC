@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 10 insight streams per minute per user
-  const rl = checkRateLimit(`insights:${user.uid}`, 10, 60_000);
+  const rl = await checkRateLimit(`insights:${user.uid}`, 10, 60_000);
   if (!rl.ok) {
     return new Response(
       JSON.stringify({ error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds.` }),
@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const daily = checkAiDailyLimit(user.uid);
+  const daily = await checkAiDailyLimit(user.uid);
   if (!daily.ok) {
     return new Response(
       JSON.stringify({ error: "You've reached your daily query limit. Please try again tomorrow." }),
@@ -48,8 +48,8 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify({ text: chunk })}\n\n`));
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-      } catch (err: any) {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err.message || "Stream failed" })}\n\n`));
+      } catch (err: unknown) {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ error: err instanceof Error ? err.message : "Stream failed" })}\n\n`));
       } finally {
         controller.close();
       }

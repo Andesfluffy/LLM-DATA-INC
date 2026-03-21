@@ -1,9 +1,22 @@
 import type { DataSource } from "@prisma/client";
 import type { ConnectorClient, ConnectorFactory } from "./types";
 
-// Schema cache (5-minute TTL)
+// Schema cache (5-minute TTL, bounded to 200 entries)
+const SCHEMA_CACHE_MAX = 200;
 const schemaCache = new Map<string, { ddl: string; expiresAt: number }>();
 const SCHEMA_TTL = 5 * 60 * 1000;
+
+function schemaCacheSet(key: string, value: { ddl: string; expiresAt: number }) {
+  if (schemaCache.size >= SCHEMA_CACHE_MAX) {
+    const now = Date.now();
+    for (const [k, v] of schemaCache) { if (v.expiresAt <= now) schemaCache.delete(k); }
+    if (schemaCache.size >= SCHEMA_CACHE_MAX) {
+      const first = schemaCache.keys().next().value;
+      if (first) schemaCache.delete(first);
+    }
+  }
+  schemaCache.set(key, value);
+}
 
 class SqliteClient implements ConnectorClient {
   private db: any = null;
@@ -32,8 +45,8 @@ class SqliteClient implements ConnectorClient {
       const db = await this.getConnection();
       db.prepare("SELECT 1").get();
       return { ok: true, ms: Date.now() - t0 };
-    } catch (err: any) {
-      return { ok: false, ms: Date.now() - t0, error: err.message || String(err) };
+    } catch (err: unknown) {
+      return { ok: false, ms: Date.now() - t0, error: err instanceof Error ? err.message : String(err) };
     }
   }
 
@@ -71,7 +84,7 @@ class SqliteClient implements ConnectorClient {
     }
 
     const ddl = lines.join("\n");
-    schemaCache.set(key, { ddl, expiresAt: Date.now() + SCHEMA_TTL });
+    schemaCacheSet(key, { ddl, expiresAt: Date.now() + SCHEMA_TTL });
 
     const allowlist = opts?.allowedTables;
     if (!allowlist) return ddl;

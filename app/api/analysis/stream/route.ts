@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 5 deep-analysis requests per minute per user (these are expensive)
-  const rl = checkRateLimit(`analysis:${userAuth.uid}`, 5, 60_000);
+  const rl = await checkRateLimit(`analysis:${userAuth.uid}`, 5, 60_000);
   if (!rl.ok) {
     return new Response(
       JSON.stringify({ error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds before trying again.` }),
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Deep analysis costs ~5 AI calls (context queries + analysis stream)
-  const daily = checkAiDailyLimit(userAuth.uid, 5);
+  const daily = await checkAiDailyLimit(userAuth.uid, 5);
   if (!daily.ok) {
     return new Response(
       JSON.stringify({ error: "You've reached your daily query limit. Please try again tomorrow." }),
@@ -85,30 +85,38 @@ export async function POST(req: NextRequest) {
         const allowedTables = await client.getAllowedTables(scopedTables);
         const contextData: ContextData[] = [];
 
+        // Validate queries upfront, then execute in parallel
+        const validQueries: string[] = [];
         for (const rawSql of rawQueries.slice(0, 5)) {
-          // Apply same safety guardrails as regular query execution
           if (!guards.isSelectOnly(rawSql)) continue;
-
           const guardResult = guards.validateSql(rawSql, allowedTables);
           if (!guardResult.ok) continue;
+          validQueries.push(guards.enforceLimit(rawSql, 100));
+        }
 
-          const safeSql = guards.enforceLimit(rawSql, 100);
-
-          try {
+        const settled = await Promise.allSettled(
+          validQueries.map(async (safeSql) => {
             const result = await client.executeQuery(safeSql, { timeoutMs: 10_000 });
-            contextData.push({
+            return {
               sql: safeSql,
               fields: result.fields,
               rows: result.rows,
               rowCount: result.rowCount,
-            });
-          } catch (err: any) {
+            } as ContextData;
+          }),
+        );
+
+        for (let idx = 0; idx < settled.length; idx++) {
+          const outcome = settled[idx]!;
+          if (outcome.status === "fulfilled") {
+            contextData.push(outcome.value);
+          } else {
             contextData.push({
-              sql: safeSql,
+              sql: validQueries[idx]!,
               fields: [],
               rows: [],
               rowCount: 0,
-              error: String(err?.message ?? err),
+              error: String((outcome.reason as any)?.message ?? outcome.reason),
             });
           }
         }
@@ -119,8 +127,8 @@ export async function POST(req: NextRequest) {
         }
 
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-      } catch (err: any) {
-        const msg = String(err?.message ?? err);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
         controller.enqueue(
           encoder.encode(`data: ${JSON.stringify({ error: msg || "Analysis failed" })}\n\n`),
         );

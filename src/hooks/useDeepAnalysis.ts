@@ -76,9 +76,9 @@ export function useDeepAnalysis() {
           }
         }
       }
-    } catch (err: any) {
-      if (err.name !== "AbortError") {
-        setError(err.message || "Failed to generate analysis");
+    } catch (err: unknown) {
+      if (!(err instanceof DOMException && err.name === "AbortError")) {
+        setError(err instanceof Error ? err.message : "Failed to generate analysis");
       }
     } finally {
       setLoading(false);

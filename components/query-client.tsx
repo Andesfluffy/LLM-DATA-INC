@@ -112,7 +112,7 @@ function PrintReport({
             </thead>
             <tbody>
               {rows.slice(0, 30).map((r, i) => (
-                <tr key={i} style={{ background: i % 2 ? "#f9fafb" : "#ffffff" }}>
+                <tr key={`row-${i}-${fields.slice(0, 3).map((f) => String(r[f] ?? "")).join("|")}`} style={{ background: i % 2 ? "#f9fafb" : "#ffffff" }}>
                   {fields.map((f) => (
                     <td
                       key={f}

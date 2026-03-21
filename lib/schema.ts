@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 
+const CACHE_MAX = 200;
 const cache = new Map<string, { value: string; expiresAt: number }>();
 
 export async function getSchemaSummary(prisma: PrismaClient, cacheKey?: string, ttlMs: number = 5 * 60 * 1000): Promise<string> {
@@ -27,6 +28,13 @@ export async function getSchemaSummary(prisma: PrismaClient, cacheKey?: string, 
     lines.push(`- ${name}(${list.join(', ')})`);
   }
   const out = lines.join('\n');
-  if (cacheKey) cache.set(cacheKey, { value: out, expiresAt: Date.now() + ttlMs });
+  if (cacheKey) {
+    if (cache.size >= CACHE_MAX) {
+      const now = Date.now();
+      for (const [k, v] of cache) { if (v.expiresAt <= now) cache.delete(k); }
+      if (cache.size >= CACHE_MAX) { const first = cache.keys().next().value; if (first) cache.delete(first); }
+    }
+    cache.set(cacheKey, { value: out, expiresAt: Date.now() + ttlMs });
+  }
   return out;
 }

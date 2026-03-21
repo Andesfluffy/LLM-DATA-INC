@@ -62,7 +62,7 @@ export async function syncIntegrationDataSource(dataSourceId: string, platform: 
     });
 
     return { ok: true, ingestedRecords: normalized.records.length };
-  } catch (error: any) {
+  } catch (error: unknown) {
     const failedAt = new Date().toISOString();
     const refreshed = await prisma.dataSource.findFirst({ where: { id: ds.id } });
     await prisma.dataSource.update({
@@ -74,7 +74,7 @@ export async function syncIntegrationDataSource(dataSourceId: string, platform: 
             ...existing.sync,
             status: "error",
             lastSyncAttemptAt: failedAt,
-            error: String(error?.message || error),
+            error: error instanceof Error ? error.message : String(error),
           },
         }),
       },

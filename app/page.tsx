@@ -154,16 +154,16 @@ export default function HomePage() {
     navigator.clipboard.writeText(url).then(() => toast.success("Share link copied to clipboard!")).catch(() => toast.error("Could not copy link"));
   }, [lastQuestion]);
 
-  const handleToggleSave = useCallback(() => {
+  const handleToggleSave = useCallback(async () => {
     if (!lastQuestion) return;
     if (currentQuestionSaved) {
-      const items = getSavedQueries();
+      const items = await getSavedQueries();
       const found = items.find((q) => q.question === lastQuestion);
-      if (found) { removeSavedQuery(found.id); setSavedRefreshKey((k) => k + 1); }
+      if (found) { await removeSavedQuery(found.id); setSavedRefreshKey((k) => k + 1); }
       setCurrentQuestionSaved(false);
       toast.success("Removed from saved queries");
     } else {
-      saveQuery(lastQuestion);
+      await saveQuery(lastQuestion);
       setCurrentQuestionSaved(true);
       setSavedRefreshKey((k) => k + 1);
       toast.success("Saved!");
@@ -207,7 +207,7 @@ export default function HomePage() {
       setResult(null);
       setOffTopic(null);
       setLastQuestion(prompt);
-      setCurrentQuestionSaved(isQuerySaved(prompt));
+      isQuerySaved(prompt).then(setCurrentQuestionSaved);
 
       try {
         const ids = await resolveConnectionIds();

@@ -212,8 +212,8 @@ class CsvClient implements ConnectorClient {
     try {
       await this.ensureDb();
       return { ok: true, ms: Date.now() - t0 };
-    } catch (err: any) {
-      return { ok: false, ms: Date.now() - t0, error: err.message || String(err) };
+    } catch (err: unknown) {
+      return { ok: false, ms: Date.now() - t0, error: err instanceof Error ? err.message : String(err) };
     }
   }
 

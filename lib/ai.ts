@@ -68,11 +68,11 @@ async function withRetry<T>(fn: () => Promise<T>, label: string): Promise<T> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       return await fn();
-    } catch (err: any) {
+    } catch (err: unknown) {
       lastError = err;
       if (attempt < MAX_RETRIES && isRetryable(err)) {
         const delay = BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200;
-        console.warn(`[ai] ${label} attempt ${attempt + 1} failed (${err.message}), retrying in ${Math.round(delay)}ms…`);
+        console.warn(`[ai] ${label} attempt ${attempt + 1} failed (${err instanceof Error ? err.message : String(err)}), retrying in ${Math.round(delay)}ms…`);
         await new Promise((r) => setTimeout(r, delay));
       } else {
         break;
@@ -93,8 +93,8 @@ export async function aiGenerate(params: AiGenerateParams): Promise<AiGenerateRe
   if (groq) {
     try {
       return await withRetry(() => groqGenerate(groq, params), "Groq generate");
-    } catch (err: any) {
-      console.warn("[ai] Groq failed after retries, falling back to Gemini:", err.message);
+    } catch (err: unknown) {
+      console.warn("[ai] Groq failed after retries, falling back to Gemini:", err instanceof Error ? err.message : String(err));
     }
   }
   return withRetry(() => geminiGenerate(params), "Gemini generate");
@@ -119,8 +119,8 @@ export async function* aiStream(params: AiGenerateParams): AsyncGenerator<string
     try {
       yield* await withRetry(async () => groqStream(groq, params), "Groq stream");
       return;
-    } catch (err: any) {
-      console.warn("[ai] Groq stream failed after retries, falling back to Gemini:", err.message);
+    } catch (err: unknown) {
+      console.warn("[ai] Groq stream failed after retries, falling back to Gemini:", err instanceof Error ? err.message : String(err));
     }
   }
   yield* await withRetry(async () => geminiStream(params), "Gemini stream");

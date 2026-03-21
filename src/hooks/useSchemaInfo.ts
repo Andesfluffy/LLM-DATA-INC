@@ -33,8 +33,8 @@ export function useSchemaInfo() {
       }
       const data = await res.json();
       setTables(data.tables || []);
-    } catch (e: any) {
-      setError(e.message || "Failed to load schema");
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to load schema");
       fetched.current = false; // allow retry
     } finally {
       setLoading(false);

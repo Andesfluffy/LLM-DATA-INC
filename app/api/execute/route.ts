@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/auth-server";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { ensureUser, findAccessibleDataSource } from "@/lib/userOrg";
 import { getConnector } from "@/lib/connectors/registry";
 import { getGuardrails } from "@/lib/connectors/guards";
@@ -12,6 +13,14 @@ export async function POST(req: NextRequest) {
   const t0 = Date.now();
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rl = await checkRateLimit(`execute:${user.uid}`, 10, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds.` },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    );
+  }
 
   const Body = z.object({ datasourceId: z.string().min(1), sql: z.string().min(1) });
   const parsed = Body.safeParse(await req.json());
@@ -44,10 +53,10 @@ export async function POST(req: NextRequest) {
     await logAuditEvent({ userId: dbUser.id, action: "report.executed", question: "", sql: limited, durationMs: Date.now() - t0, rowCount: result.rowCount, targetType: "datasource", targetId: ds.id });
 
     return NextResponse.json({ fields: result.fields, rows: result.rows });
-  } catch (e: any) {
+  } catch (error: unknown) {
     await logAuditEvent({ userId: dbUser.id, action: "report.execute_failed", question: "", sql: limited, durationMs: Date.now() - t0, rowCount: null, targetType: "datasource", targetId: ds.id });
 
-    const msg = String(e?.message || e);
+    const msg = error instanceof Error ? error.message : String(error);
     const isTimeout = /statement timeout|canceling statement|max_execution_time|timed out/i.test(msg);
     return NextResponse.json({ error: isTimeout ? "Query timed out after 10s" : "Query failed" }, { status: isTimeout ? 504 : 500 });
   } finally {

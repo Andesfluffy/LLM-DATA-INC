@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma as appPrisma } from "@/lib/db";
 import { nlToSql } from "@/src/server/generateSql";
 import { getUserFromRequest } from "@/lib/auth-server";
+import { checkRateLimit, checkAiDailyLimit } from "@/lib/rateLimit";
 import { ensureUser, findAccessibleDataSource } from "@/lib/userOrg";
 import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { getConnector } from "@/lib/connectors/registry";
@@ -14,6 +15,22 @@ export async function POST(req: NextRequest) {
   const t0 = Date.now();
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const rl = await checkRateLimit(`nl2sql:${user.uid}`, 15, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds.` },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    );
+  }
+
+  const daily = await checkAiDailyLimit(user.uid);
+  if (!daily.ok) {
+    return NextResponse.json(
+      { error: "You've reached your daily query limit. Please try again tomorrow." },
+      { status: 429 }
+    );
+  }
 
   const Body = z.object({ datasourceId: z.string().min(1), prompt: z.string().min(1) });
   const parsed = Body.safeParse(await req.json());
@@ -79,7 +96,7 @@ export async function POST(req: NextRequest) {
     await appPrisma.queryAudit.create({
       data: { userId: dbUser.id, dataSourceId: ds.id, nlQuery: prompt, generatedSql: limited, status: "success", durationMs: Date.now() - t0 },
     });
-    nlCache.set(key, { sql: limited, expiresAt: Date.now() + 30_000 });
+    nlCacheSet(key, { sql: limited, expiresAt: Date.now() + 30_000 });
 
     return NextResponse.json({ sql: limited });
   } catch {
@@ -92,4 +109,22 @@ export async function POST(req: NextRequest) {
   }
 }
 
+const NL_CACHE_MAX = 500;
 const nlCache = new Map<string, { sql: string; expiresAt: number }>();
+
+function nlCacheSet(key: string, value: { sql: string; expiresAt: number }) {
+  if (nlCache.size >= NL_CACHE_MAX) {
+    const now = Date.now();
+    for (const [k, v] of nlCache) {
+      if (v.expiresAt <= now) nlCache.delete(k);
+    }
+    if (nlCache.size >= NL_CACHE_MAX) {
+      let count = 0;
+      for (const k of nlCache.keys()) {
+        nlCache.delete(k);
+        if (++count >= NL_CACHE_MAX / 2) break;
+      }
+    }
+  }
+  nlCache.set(key, value);
+}

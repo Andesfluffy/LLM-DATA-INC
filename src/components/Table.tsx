@@ -22,7 +22,7 @@ export default function Table({ fields, rows, className = "" }: Props) {
         </thead>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i} className={`${i % 2 ? "bg-white/[0.015]" : "bg-transparent"} animate-fade-in`}>
+            <tr key={`row-${i}-${fields.slice(0, 3).map((f) => String((r as any)[f] ?? "")).join("|")}`} className={`${i % 2 ? "bg-white/[0.015]" : "bg-transparent"} animate-fade-in`}>
               {fields.map((h) => (
                 <td key={h} className="max-w-[220px] px-3 py-2.5 sm:px-4 sm:py-3 align-top border-b border-white/[0.04] font-mono text-grape-200 break-words whitespace-pre-wrap">
                   {formatCell((r as any)[h])}

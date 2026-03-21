@@ -25,8 +25,8 @@ export function getAdminApp(): App {
       if (process.env.NODE_ENV !== "production") {
         console.log("[firebase-admin] Admin app initialized successfully");
       }
-    } catch (error: any) {
-      console.error("[firebase-admin] Failed to initialize admin app:", error?.message || String(error));
+    } catch (error: unknown) {
+      console.error("[firebase-admin] Failed to initialize admin app:", error instanceof Error ? error.message : String(error));
       throw error;
     }
   }
@@ -42,11 +42,11 @@ export async function verifyIdToken(idToken: string) {
       console.log("[firebase-admin] Token verified successfully for user:", decodedToken.uid);
     }
     return decodedToken;
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (process.env.NODE_ENV !== "production") {
       console.error(
         "[firebase-admin] Token verification failed:",
-        error?.code || error?.message || String(error)
+        error instanceof Error ? error.message : String(error)
       );
     }
     throw error;

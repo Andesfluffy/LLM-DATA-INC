@@ -1,4 +1,4 @@
-import { aiGenerate, aiStream } from "@/lib/ai";
+import { aiStream } from "@/lib/ai";
 
 export type InsightParams = {
   question: string;
@@ -49,29 +49,6 @@ Respond ONLY with valid JSON matching this exact schema:
   "keyMetrics": [{"label": "string", "value": "string", "trend": "up|down|flat"}],
   "observations": ["string"]
 }`;
-
-export async function generateInsights(params: InsightParams): Promise<InsightResult> {
-  const data = truncateData(params.fields, params.rows);
-  const totalRows = params.rows.length;
-
-  const prompt = `Question: ${params.question}
-SQL: ${params.sql}
-Data (${totalRows} total rows${totalRows > MAX_ROWS ? `, showing first ${MAX_ROWS}` : ""}):
-${data}`;
-
-  const result = await aiGenerate({ system: SYSTEM_PROMPT, prompt, temperature: 0.2, json: true });
-  const raw = result.text || "{}";
-  try {
-    const parsed = JSON.parse(raw);
-    return {
-      summary: parsed.summary || "No summary available.",
-      keyMetrics: Array.isArray(parsed.keyMetrics) ? parsed.keyMetrics : [],
-      observations: Array.isArray(parsed.observations) ? parsed.observations : [],
-    };
-  } catch {
-    return { summary: raw, keyMetrics: [], observations: [] };
-  }
-}
 
 export async function* streamInsights(params: InsightParams): AsyncGenerator<string> {
   const data = truncateData(params.fields, params.rows);

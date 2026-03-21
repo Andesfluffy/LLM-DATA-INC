@@ -95,9 +95,9 @@ export async function POST(req: NextRequest) {
     }));
 
     return NextResponse.json({ tables });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json(
-      { error: e?.message || "Failed to fetch schema preview" },
+      { error: e instanceof Error ? e.message : "Failed to fetch schema preview" },
       { status: 500 }
     );
   }

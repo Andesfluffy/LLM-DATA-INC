@@ -31,9 +31,9 @@ export async function GET(req: NextRequest) {
     const ddl = await client.getSchema({ cacheKey: schemaKey });
     const tables = parseCompactSchema(ddl);
     return NextResponse.json({ tables, scopedTables });
-  } catch (e: any) {
+  } catch (e: unknown) {
     return NextResponse.json(
-      { error: e?.message || "Failed to fetch schema info" },
+      { error: e instanceof Error ? e.message : "Failed to fetch schema info" },
       { status: 500 }
     );
   } finally {

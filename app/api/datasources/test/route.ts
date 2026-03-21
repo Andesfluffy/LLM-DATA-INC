@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
   let factory;
   try {
     factory = getConnector(type);
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || "Unsupported connector type" }, { status: 400 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Unsupported connector type" }, { status: 400 });
   }
 
   const paramsForValidation =
@@ -62,8 +62,11 @@ export async function POST(req: NextRequest) {
       await client.query("SET statement_timeout = 10000");
       await client.query("SELECT 1");
       return NextResponse.json({ ms: Date.now() - t0 });
-    } catch (e: any) {
-      return NextResponse.json({ error: String(e?.message || e) }, { status: 400 });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const safe = /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|authentication|password|permission/i.test(msg)
+        ? msg : "Connection failed. Check your credentials and host settings.";
+      return NextResponse.json({ error: safe }, { status: 400 });
     } finally {
       try {
         await client.end();
@@ -88,8 +91,11 @@ export async function POST(req: NextRequest) {
       await conn.query("SELECT 1");
       await conn.end();
       return NextResponse.json({ ms: Date.now() - t0 });
-    } catch (e: any) {
-      return NextResponse.json({ error: String(e?.message || e) }, { status: 400 });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const safe = /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|authentication|password|permission/i.test(msg)
+        ? msg : "Connection failed. Check your credentials and host settings.";
+      return NextResponse.json({ error: safe }, { status: 400 });
     }
   }
 

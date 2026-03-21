@@ -74,9 +74,9 @@ export function useInsightStream() {
           }
         }
       }
-    } catch (err: any) {
-      if (err.name !== "AbortError") {
-        setError(err.message || "Failed to generate insights");
+    } catch (err: unknown) {
+      if (!(err instanceof DOMException && err.name === "AbortError")) {
+        setError(err instanceof Error ? err.message : "Failed to generate insights");
       }
     } finally {
       setLoading(false);

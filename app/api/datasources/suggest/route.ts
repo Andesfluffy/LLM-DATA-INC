@@ -14,15 +14,30 @@ type SuggestResult = {
   suggestions: string[];
 };
 
-// Cache for 60 minutes per datasource+schema hash
+// Cache for 60 minutes per datasource+schema hash (bounded to 100 entries)
+const SUGGEST_CACHE_MAX = 100;
 const suggestCache = new Map<string, { data: SuggestResult; expiresAt: number }>();
+
+function suggestCacheSet(key: string, value: { data: SuggestResult; expiresAt: number }) {
+  if (suggestCache.size >= SUGGEST_CACHE_MAX) {
+    const now = Date.now();
+    for (const [k, v] of suggestCache) {
+      if (v.expiresAt <= now) suggestCache.delete(k);
+    }
+    if (suggestCache.size >= SUGGEST_CACHE_MAX) {
+      const firstKey = suggestCache.keys().next().value;
+      if (firstKey) suggestCache.delete(firstKey);
+    }
+  }
+  suggestCache.set(key, value);
+}
 
 export async function POST(req: NextRequest) {
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   // 5 suggestion requests per minute per user (cached, so rarely hit)
-  const rl = checkRateLimit(`suggest:${user.uid}`, 5, 60_000);
+  const rl = await checkRateLimit(`suggest:${user.uid}`, 5, 60_000);
   if (!rl.ok) {
     return NextResponse.json(
       { error: `Too many requests. Please wait ${Math.ceil(rl.retryAfterMs / 1000)} seconds.` },
@@ -30,7 +45,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const daily = checkAiDailyLimit(user.uid);
+  const daily = await checkAiDailyLimit(user.uid);
   if (!daily.ok) {
     return NextResponse.json(
       { error: "You've reached your daily query limit. Please try again tomorrow." },
@@ -92,7 +107,7 @@ Respond ONLY with valid JSON in this exact shape: {"description": "...", "sugges
       result = { description: "Your data source is connected.", suggestions: [] };
     }
 
-    suggestCache.set(cacheKey, { data: result, expiresAt: Date.now() + 60 * 60_000 });
+    suggestCacheSet(cacheKey, { data: result, expiresAt: Date.now() + 60 * 60_000 });
     return NextResponse.json(result);
   } finally {
     await client.disconnect();

@@ -111,8 +111,8 @@ async function normalizeSpreadsheetToCsv(
       availableSheets: nonEmptySheets,
       delimiter: ",",
     };
-  } catch (error: any) {
-    if (typeof error?.message === "string" && error.message.startsWith("Sheet ")) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.startsWith("Sheet ")) {
       throw error;
     }
     throw new Error("Unable to parse Excel file. Please upload a standard .xlsx or .xls file.");
@@ -203,8 +203,8 @@ export async function POST(req: NextRequest) {
   let parsed: { csvBuffer: Buffer; sourceSheet?: string; availableSheets?: string[]; delimiter: string };
   try {
     parsed = await normalizeSpreadsheetToCsv(file, requestedSheet);
-  } catch (error: any) {
-    return NextResponse.json({ error: error?.message || "Invalid spreadsheet file" }, { status: 400 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Invalid spreadsheet file" }, { status: 400 });
   }
 
   const baseName = file.name.replace(/\.[^.]+$/, "");

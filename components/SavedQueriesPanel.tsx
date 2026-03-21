@@ -14,13 +14,15 @@ export default function SavedQueriesPanel({ onRerun, refreshKey }: Props) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<SavedQuery[]>([]);
 
-  const reload = useCallback(() => setItems(getSavedQueries()), []);
+  const reload = useCallback(() => {
+    getSavedQueries().then(setItems);
+  }, []);
 
   // Reload when opened or when refreshKey changes (new save from parent)
   useEffect(() => { reload(); }, [open, refreshKey, reload]);
 
-  const handleRemove = useCallback((id: string) => {
-    removeSavedQuery(id);
+  const handleRemove = useCallback(async (id: string) => {
+    await removeSavedQuery(id);
     reload();
   }, [reload]);
 
