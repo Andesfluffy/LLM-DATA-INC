@@ -12,6 +12,7 @@ import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { logAuditEvent } from "@/lib/auditLog";
 import { nlToSql } from "@/src/server/generateSql";
 import { isAnalyticalQuestion } from "@/lib/deepAnalysis";
+import { nlCacheGet, nlCacheSet } from "@/lib/nlCache";
 import "@/lib/connectors/init";
 
 const HistoryTurn = z.object({ question: z.string().max(500), sql: z.string().max(2000) });
@@ -101,9 +102,9 @@ export async function POST(req: NextRequest) {
       .digest("hex")}`;
 
     let sqlRaw: string;
-    const hit = nlCache.get(cacheKey);
-    if (hit && hit.expiresAt > Date.now()) {
-      sqlRaw = hit.sql;
+    const cached = nlCacheGet(cacheKey);
+    if (cached) {
+      sqlRaw = cached;
     } else {
       sqlRaw = await nlToSql({
         question,
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
         dialect: factory.dialect,
         conversationHistory: history,
       });
-      nlCacheSet(cacheKey, { sql: sqlRaw, expiresAt: Date.now() + 30_000 });
+      nlCacheSet(cacheKey, sqlRaw);
     }
 
     // Off-topic: nlToSql signals the question doesn't match the schema
@@ -191,24 +192,3 @@ export async function POST(req: NextRequest) {
   }
 }
 
-const NL_CACHE_MAX = 500;
-const nlCache = new Map<string, { sql: string; expiresAt: number }>();
-
-function nlCacheSet(key: string, value: { sql: string; expiresAt: number }) {
-  // Evict expired entries first; if still too large, clear oldest half
-  if (nlCache.size >= NL_CACHE_MAX) {
-    const now = Date.now();
-    for (const [k, v] of nlCache) {
-      if (v.expiresAt <= now) nlCache.delete(k);
-    }
-    if (nlCache.size >= NL_CACHE_MAX) {
-      // Delete the first NL_CACHE_MAX/2 entries (oldest insertions)
-      let count = 0;
-      for (const k of nlCache.keys()) {
-        nlCache.delete(k);
-        if (++count >= NL_CACHE_MAX / 2) break;
-      }
-    }
-  }
-  nlCache.set(key, value);
-}

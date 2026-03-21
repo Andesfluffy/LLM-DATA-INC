@@ -23,7 +23,7 @@ export default function Input({ label, helperText, error, className = "", id, ..
       {error ? (
         <p className="mt-1.5 text-xs text-red-400">{error}</p>
       ) : helperText ? (
-        <p className="mt-1.5 text-xs text-grape-500">{helperText}</p>
+        <p className="mt-1.5 text-xs text-grape-400">{helperText}</p>
       ) : null}
     </div>
   );

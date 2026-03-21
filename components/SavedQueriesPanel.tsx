@@ -13,6 +13,7 @@ type Props = {
 export default function SavedQueriesPanel({ onRerun, refreshKey }: Props) {
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<SavedQuery[]>([]);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     getSavedQueries().then(setItems);
@@ -23,6 +24,7 @@ export default function SavedQueriesPanel({ onRerun, refreshKey }: Props) {
 
   const handleRemove = useCallback(async (id: string) => {
     await removeSavedQuery(id);
+    setConfirmDeleteId(null);
     reload();
   }, [reload]);
 
@@ -33,6 +35,7 @@ export default function SavedQueriesPanel({ onRerun, refreshKey }: Props) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
         className="w-full flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4 hover:bg-white/[0.02] transition-colors text-left"
       >
         <div className="flex items-center gap-2.5 min-w-0">
@@ -47,40 +50,65 @@ export default function SavedQueriesPanel({ onRerun, refreshKey }: Props) {
           </div>
         </div>
         <div className="shrink-0 text-grape-500">
-          <ChevronDown className={`h-4 w-4 transition-transform ${open ? "" : "-rotate-90"}`} />
+          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${open ? "" : "-rotate-90"}`} />
         </div>
       </button>
 
       {open && (
-        <div className="border-t border-white/[0.04]">
+        <div className="border-t border-white/[0.04] animate-fade-in">
           {items.length === 0 ? (
-            <div className="px-4 py-5 text-center sm:px-5">
-              <p className="text-sm text-grape-500">
-                No saved queries yet — star a question from the results to save it here.
+            <div className="px-4 py-8 text-center sm:px-5">
+              <Bookmark className="h-8 w-8 text-grape-500/50 mx-auto mb-2" />
+              <p className="text-sm font-medium text-grape-400 mb-1">
+                No saved queries yet
+              </p>
+              <p className="text-xs text-grape-500">
+                Star a question from the results to save it here for quick access.
               </p>
             </div>
           ) : (
             <div className="divide-y divide-white/[0.04]">
               {items.map((item) => (
-                <div key={item.id} className="flex items-start gap-2 px-4 py-3 sm:px-5">
+                <div key={item.id} className="flex items-start gap-2 px-4 py-3 sm:px-5 hover:bg-white/[0.02] transition-colors">
                   <p className="flex-1 min-w-0 text-sm text-white leading-snug">{item.question}</p>
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
-                      title="Re-run"
+                      title="Re-run this query"
+                      aria-label={`Re-run: ${item.question}`}
                       onClick={() => onRerun(item.question)}
-                      className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-grape-500 hover:text-white hover:bg-white/[0.06] transition-colors"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-grape-500 hover:text-white hover:bg-white/[0.06] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
                     >
-                      <RotateCcw className="h-3 w-3" />
+                      <RotateCcw className="h-3.5 w-3.5" />
                     </button>
-                    <button
-                      type="button"
-                      title="Remove"
-                      onClick={() => handleRemove(item.id)}
-                      className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-grape-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
+                    {confirmDeleteId === item.id ? (
+                      <div className="flex items-center gap-1 animate-fade-in">
+                        <button
+                          type="button"
+                          onClick={() => handleRemove(item.id)}
+                          className="inline-flex h-7 px-2 items-center justify-center rounded-lg text-xs font-medium bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/30"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="inline-flex h-7 px-2 items-center justify-center rounded-lg text-xs text-grape-400 hover:text-white hover:bg-white/[0.06] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        title="Remove from saved"
+                        aria-label={`Remove: ${item.question}`}
+                        onClick={() => setConfirmDeleteId(item.id)}
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-grape-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

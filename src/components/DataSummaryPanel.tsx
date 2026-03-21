@@ -133,10 +133,25 @@ export default function DataSummaryPanel({ datasourceId, datasourceName, onAsk }
                 <Loader2 className="h-4 w-4 animate-spin text-emerald-400 shrink-0" />
                 <span>Analyzing your data…</span>
               </div>
-              <div className="space-y-2 pl-6">
-                <div className="h-3 w-3/4 rounded bg-white/[0.04] animate-pulse" />
-                <div className="h-3 w-1/2 rounded bg-white/[0.04] animate-pulse" />
-                <div className="h-3 w-2/3 rounded bg-white/[0.04] animate-pulse" />
+              {/* Table badges skeleton */}
+              <div className="flex gap-1.5">
+                <div className="h-6 w-20 rounded-lg bg-white/[0.04] animate-skeleton" />
+                <div className="h-6 w-16 rounded-lg bg-white/[0.04] animate-skeleton" style={{ animationDelay: "100ms" }} />
+                <div className="h-6 w-24 rounded-lg bg-white/[0.04] animate-skeleton" style={{ animationDelay: "200ms" }} />
+              </div>
+              {/* Summary skeleton */}
+              <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-3">
+                <div className="h-3 w-24 rounded bg-white/[0.04] animate-skeleton mb-2" />
+                <div className="space-y-2">
+                  <div className="h-3 w-full rounded bg-white/[0.04] animate-skeleton" style={{ animationDelay: "150ms" }} />
+                  <div className="h-3 w-4/5 rounded bg-white/[0.04] animate-skeleton" style={{ animationDelay: "300ms" }} />
+                </div>
+              </div>
+              {/* Suggestions skeleton */}
+              <div className="space-y-1.5">
+                <div className="h-9 w-full rounded-xl bg-white/[0.04] animate-skeleton" style={{ animationDelay: "200ms" }} />
+                <div className="h-9 w-full rounded-xl bg-white/[0.04] animate-skeleton" style={{ animationDelay: "350ms" }} />
+                <div className="h-9 w-3/4 rounded-xl bg-white/[0.04] animate-skeleton" style={{ animationDelay: "500ms" }} />
               </div>
             </div>
           ) : error ? (

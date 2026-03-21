@@ -24,9 +24,21 @@ type Props = {
 
 // Heuristics: prefer (date/time + numeric) → line; else (categorical + numeric) → bar
 export default function ResultsChart({ fields, rows, chartType = "auto" }: Props) {
-  if (!rows || rows.length === 0) return null;
+  if (!rows || rows.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[200px] rounded-xl border border-white/[0.06] bg-white/[0.02] text-grape-400 text-sm">
+        No data to chart — try a query that returns results.
+      </div>
+    );
+  }
   const f = inferChartFields(fields, rows);
-  if (!f) return null;
+  if (!f) {
+    return (
+      <div className="flex items-center justify-center h-[200px] rounded-xl border border-white/[0.06] bg-white/[0.02] text-grape-400 text-sm px-4 text-center">
+        This data can&apos;t be charted automatically. Switch to table view, or try a query with at least one text/date column and one numeric column.
+      </div>
+    );
+  }
 
   const effectiveKind =
     chartType === "line" ? "time"

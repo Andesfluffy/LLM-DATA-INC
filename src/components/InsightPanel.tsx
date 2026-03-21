@@ -68,9 +68,16 @@ export default function InsightPanel({ question, sql, fields, rows }: InsightPan
             Click &ldquo;Generate Insights&rdquo; for an AI-powered summary of your results.
           </p>
         ) : (
-          <div className="flex items-center gap-2 text-sm text-slate-400">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Reading your results and preparing a summary...
+          <div className="space-y-3 py-1">
+            <div className="flex items-center gap-2.5 text-sm text-slate-400">
+              <Loader2 className="h-4 w-4 animate-spin text-amber-400 shrink-0" />
+              <span>Reading your results and preparing a summary...</span>
+            </div>
+            <div className="space-y-2 pl-6">
+              <div className="h-3 w-full rounded bg-white/[0.04] animate-skeleton" />
+              <div className="h-3 w-4/5 rounded bg-white/[0.04] animate-skeleton" style={{ animationDelay: "200ms" }} />
+              <div className="h-3 w-3/5 rounded bg-white/[0.04] animate-skeleton" style={{ animationDelay: "400ms" }} />
+            </div>
           </div>
         )}
       </CardBody>

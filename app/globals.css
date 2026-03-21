@@ -75,10 +75,22 @@
 .animate-float-slow { animation: float-slow 8s ease-in-out infinite; }
 .animate-float-slower { animation: float-slow 12s ease-in-out infinite; }
 
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-scale-in { animation: scale-in 200ms ease-out both; }
+
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
   100% { background-position: 200% 0; }
 }
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 0.04; }
+  50% { opacity: 0.08; }
+}
+.animate-skeleton { animation: skeleton-pulse 1.8s ease-in-out infinite; }
 
 @keyframes pulse-glow {
   0%, 100% { opacity: 0.3; }

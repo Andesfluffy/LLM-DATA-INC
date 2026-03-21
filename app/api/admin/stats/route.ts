@@ -38,12 +38,10 @@ export async function GET(req: NextRequest) {
       where: { status: "report.generated", durationMs: { not: null } },
     }),
 
-    // Distinct users in last 30 days
-    prisma.queryAudit.findMany({
-      where: { createdAt: { gte: thirtyDaysAgo } },
-      select: { userId: true },
-      distinct: ["userId"],
-    }),
+    // Distinct users in last 30 days (count only, avoid loading all rows)
+    prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(DISTINCT "userId") as count FROM "QueryAudit" WHERE "createdAt" >= ${thirtyDaysAgo}
+    `,
 
     // Queries per day for last 30 days
     prisma.queryAudit.findMany({
@@ -97,7 +95,7 @@ export async function GET(req: NextRequest) {
     successfulQueries,
     successRate: Math.round(successRate * 1000) / 10, // e.g. 84.5
     avgDurationMs: Math.round(avgDurationRaw._avg.durationMs ?? 0),
-    activeUsersLast30d: activeUsersRaw.length,
+    activeUsersLast30d: Number(activeUsersRaw[0]?.count ?? 0),
     daily,
     topQuestions,
     errorBreakdown: errorBreakdownRaw.map((r: { status: string; _count: { status: number } }) => ({

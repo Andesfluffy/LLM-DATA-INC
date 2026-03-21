@@ -8,18 +8,14 @@ export const AUTH_ERROR_MESSAGE =
 export async function getUserFromRequest(req: NextRequest): Promise<AuthUser> {
   const authz = req.headers.get("authorization") || req.headers.get("Authorization");
   if (!authz) {
-    // Dev-mode bypass: return a test user when no auth header is present
-    if (process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS === "true") {
-      return { uid: "dev-test-user", email: "dev@test.local" };
-    }
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV === "development") {
       console.warn("[auth-server] No Authorization header found in request");
     }
     return null;
   }
   const m = /^Bearer\s+(.+)$/i.exec(authz);
   if (!m) {
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV === "development") {
       console.warn("[auth-server] Authorization header does not match Bearer format");
     }
     return null;
@@ -28,11 +24,7 @@ export async function getUserFromRequest(req: NextRequest): Promise<AuthUser> {
     const token = await verifyIdToken(m[1]!);
     return { uid: token.uid, email: token.email || null };
   } catch (error: unknown) {
-    // Dev-mode bypass: if token verification fails in dev, fall back to test user
-    if (process.env.NODE_ENV !== "production" && process.env.DEV_AUTH_BYPASS === "true") {
-      return { uid: "dev-test-user", email: "dev@test.local" };
-    }
-    if (process.env.NODE_ENV !== "production") {
+    if (process.env.NODE_ENV === "development") {
       console.error(
         "[auth-server] Token verification failed:",
         error instanceof Error ? error.message : String(error)

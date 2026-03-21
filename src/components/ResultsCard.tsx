@@ -137,21 +137,21 @@ export default function ResultsCard({
         )}
 
         {hasRows && (
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row md:flex-wrap no-print">
-            <Button onClick={onDownloadCsv} variant="secondary" className="w-full sm:w-auto">
-              <Download className="h-4 w-4" />
-              <span className="hidden md:inline">Download</span> Spreadsheet
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:flex sm:flex-row sm:flex-wrap no-print">
+            <Button onClick={onDownloadCsv} variant="secondary" size="sm" className="w-full sm:w-auto sm:text-sm">
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Download</span> CSV
             </Button>
-            <Button onClick={onDownloadPdf} variant="secondary" className="w-full sm:w-auto">
-              <FileText className="h-4 w-4" />
-              <span className="hidden md:inline">Download</span> PDF
+            <Button onClick={onDownloadPdf} variant="secondary" size="sm" className="w-full sm:w-auto sm:text-sm">
+              <FileText className="h-3.5 w-3.5" />
+              PDF
             </Button>
-            <Button onClick={onShare} variant="secondary" className="w-full sm:w-auto" title="Copy a shareable link pre-filled with this question">
-              <Share2 className="h-4 w-4" />
+            <Button onClick={onShare} variant="secondary" size="sm" className="w-full sm:w-auto sm:text-sm" title="Copy a shareable link pre-filled with this question">
+              <Share2 className="h-3.5 w-3.5" />
               Share
             </Button>
-            <Button onClick={onToggleSave} variant="secondary" className="w-full sm:w-auto" title={currentQuestionSaved ? "Remove from saved queries" : "Save this question"}>
-              {currentQuestionSaved ? <BookmarkCheck className="h-4 w-4 text-amber-400" /> : <Bookmark className="h-4 w-4" />}
+            <Button onClick={onToggleSave} variant="secondary" size="sm" className="w-full sm:w-auto sm:text-sm" title={currentQuestionSaved ? "Remove from saved queries" : "Save this question"}>
+              {currentQuestionSaved ? <BookmarkCheck className="h-3.5 w-3.5 text-amber-400" /> : <Bookmark className="h-3.5 w-3.5" />}
               {currentQuestionSaved ? "Saved" : "Save"}
             </Button>
           </div>

@@ -7,6 +7,7 @@ import { ensureUser, findAccessibleDataSource } from "@/lib/userOrg";
 import { getPersistedDatasourceScope } from "@/lib/datasourceScope";
 import { getConnector } from "@/lib/connectors/registry";
 import { getGuardrails } from "@/lib/connectors/guards";
+import { nlCacheGet, nlCacheSet } from "@/lib/nlCache";
 import "@/lib/connectors/init";
 import { z } from "zod";
 import crypto from "crypto";
@@ -56,9 +57,9 @@ export async function POST(req: NextRequest) {
     const schemaHash = crypto.createHash("sha256").update(schema).digest("hex");
 
     const key = `${ds.id}|${schemaHash}|${crypto.createHash("sha256").update(prompt).digest("hex")}`;
-    const cached = nlCache.get(key);
-    if (cached && cached.expiresAt > Date.now()) {
-      return NextResponse.json({ sql: cached.sql });
+    const cached = nlCacheGet(key);
+    if (cached) {
+      return NextResponse.json({ sql: cached });
     }
 
     const generated = await nlToSql({
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
     await appPrisma.queryAudit.create({
       data: { userId: dbUser.id, dataSourceId: ds.id, nlQuery: prompt, generatedSql: limited, status: "success", durationMs: Date.now() - t0 },
     });
-    nlCacheSet(key, { sql: limited, expiresAt: Date.now() + 30_000 });
+    nlCacheSet(key, limited);
 
     return NextResponse.json({ sql: limited });
   } catch {
@@ -109,22 +110,3 @@ export async function POST(req: NextRequest) {
   }
 }
 
-const NL_CACHE_MAX = 500;
-const nlCache = new Map<string, { sql: string; expiresAt: number }>();
-
-function nlCacheSet(key: string, value: { sql: string; expiresAt: number }) {
-  if (nlCache.size >= NL_CACHE_MAX) {
-    const now = Date.now();
-    for (const [k, v] of nlCache) {
-      if (v.expiresAt <= now) nlCache.delete(k);
-    }
-    if (nlCache.size >= NL_CACHE_MAX) {
-      let count = 0;
-      for (const k of nlCache.keys()) {
-        nlCache.delete(k);
-        if (++count >= NL_CACHE_MAX / 2) break;
-      }
-    }
-  }
-  nlCache.set(key, value);
-}

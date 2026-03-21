@@ -67,7 +67,7 @@ function AppShellInner({ children }: AppShellProps) {
 
           <div className="flex items-center gap-3">
             <details className="group relative md:hidden">
-              <summary className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-grape-300 transition hover:text-white [&::-webkit-details-marker]:hidden">
+              <summary aria-label="Open navigation menu" className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] text-grape-300 transition hover:text-white [&::-webkit-details-marker]:hidden">
                 <svg
                   width="18"
                   height="18"

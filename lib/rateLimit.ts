@@ -11,11 +11,22 @@ import { Redis } from "@upstash/redis";
 
 let _redis: Redis | null = null;
 
+let _redisWarned = false;
+
 function getRedis(): Redis | null {
   if (_redis) return _redis;
   const url = process.env.UPSTASH_REDIS_REST_URL;
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) return null;
+  if (!url || !token) {
+    if (process.env.NODE_ENV === "production" && !_redisWarned) {
+      _redisWarned = true;
+      console.error(
+        "[rateLimit] UPSTASH_REDIS_REST_URL/TOKEN not configured in production. " +
+        "Rate limits use in-memory fallback which is NOT safe for multi-instance deployments."
+      );
+    }
+    return null;
+  }
   _redis = new Redis({ url, token });
   return _redis;
 }

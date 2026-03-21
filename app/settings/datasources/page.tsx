@@ -66,6 +66,7 @@ export default function DataSourcesSettingsPage() {
   const [dataSources, setDataSources] = useState<DataSourceSummary[]>([]);
   const [activeDatasourceId, setActiveDatasourceId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -683,20 +684,36 @@ export default function DataSourcesSettingsPage() {
                             {(ds.type || "unknown").toUpperCase()} {activeDatasourceId === ds.id ? "• ACTIVE" : ""}
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => onDeleteDataSource(ds.id)}
-                          disabled={deletingId === ds.id}
-                          className="inline-flex h-8 w-8 items-center justify-center self-end rounded-md border border-red-500/30 text-red-300 transition hover:bg-red-500/10 disabled:opacity-50 sm:self-auto"
-                          aria-label={`Delete ${ds.name}`}
-                          title={`Delete ${ds.name}`}
-                        >
-                          {deletingId === ds.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
+                        {confirmDeleteId === ds.id ? (
+                          <div className="flex items-center gap-1.5 self-end sm:self-auto animate-fade-in">
+                            <button
+                              type="button"
+                              onClick={() => { setConfirmDeleteId(null); onDeleteDataSource(ds.id); }}
+                              disabled={deletingId === ds.id}
+                              className="inline-flex h-7 items-center gap-1 rounded-md border border-rose-500/40 bg-rose-500/15 px-2.5 text-xs font-medium text-rose-300 transition hover:bg-rose-500/25 disabled:opacity-50"
+                            >
+                              {deletingId === ds.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                              Confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(null)}
+                              className="inline-flex h-7 items-center rounded-md px-2 text-xs text-grape-400 hover:text-white hover:bg-white/[0.06] transition-colors"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(ds.id)}
+                            className="inline-flex h-8 w-8 items-center justify-center self-end rounded-md border border-white/[0.08] text-grape-400 transition hover:text-rose-400 hover:border-rose-500/30 hover:bg-rose-500/10 sm:self-auto"
+                            aria-label={`Delete ${ds.name}`}
+                            title={`Delete ${ds.name}`}
+                          >
                             <Trash2 className="h-4 w-4" />
-                          )}
-                        </button>
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>

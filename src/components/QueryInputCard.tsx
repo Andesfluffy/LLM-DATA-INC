@@ -158,7 +158,7 @@ export default function QueryInputCard({
         {error && (
           <div className="mt-3 flex items-start gap-2 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2.5">
             <AlertCircle className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />
-            <p role="alert" className="text-sm text-red-300" aria-live="polite">{error}</p>
+            <p role="alert" className="text-sm text-red-300" aria-live="assertive">{error}</p>
           </div>
         )}
       </CardBody>

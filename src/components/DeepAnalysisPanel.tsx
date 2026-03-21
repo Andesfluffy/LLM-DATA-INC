@@ -176,8 +176,11 @@ export default function DeepAnalysisPanel({ question, datasourceId }: Props) {
 
         {/* Error */}
         {error && (
-          <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300 mb-3">
-            {error}
+          <div className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-3 mb-3 flex items-start gap-2">
+            <svg className="h-4 w-4 text-rose-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+            </svg>
+            <p className="text-sm text-rose-200">{error}</p>
           </div>
         )}
 
@@ -188,8 +191,14 @@ export default function DeepAnalysisPanel({ question, datasourceId }: Props) {
               <Loader2 className="h-4 w-4 animate-spin text-violet-400 shrink-0" />
               <span>Gathering data from your database and analyzing patterns…</span>
             </div>
+            <div className="space-y-2.5 pl-6">
+              <div className="h-3 w-full rounded bg-white/[0.04] animate-skeleton" />
+              <div className="h-3 w-4/5 rounded bg-white/[0.04] animate-skeleton" style={{ animationDelay: "150ms" }} />
+              <div className="h-3 w-3/5 rounded bg-white/[0.04] animate-skeleton" style={{ animationDelay: "300ms" }} />
+              <div className="h-3 w-2/3 rounded bg-white/[0.04] animate-skeleton" style={{ animationDelay: "450ms" }} />
+            </div>
             <p className="text-xs text-slate-500 pl-6">
-              Running multiple queries to build context. This may take 15–30 seconds.
+              Running multiple queries to build context. This typically takes 15–30 seconds.
             </p>
           </div>
         )}

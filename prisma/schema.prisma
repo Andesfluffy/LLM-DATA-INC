@@ -92,4 +92,6 @@ model QueryAudit {
   @@index([userId])
   @@index([dataSourceId])
   @@index([createdAt])
+  @@index([status])
+  @@index([status, createdAt])
 }

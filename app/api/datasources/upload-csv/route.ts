@@ -4,6 +4,7 @@ import { AUTH_ERROR_MESSAGE, getUserFromRequest } from "@/lib/auth-server";
 import { ensureUser } from "@/lib/userOrg";
 import { cleanupStaleUploadFiles, deleteManagedUploadFile, extractCsvFilePath } from "@/lib/csvStorage";
 import { replaceDatasourceScope } from "@/lib/datasourceScope";
+import { checkRateLimit } from "@/lib/rateLimit";
 import { parse } from "csv-parse/sync";
 import { extname, join } from "path";
 import { mkdirSync, writeFileSync } from "fs";
@@ -160,8 +161,23 @@ function pickStorageMode(byteLength: number): "inline_base64" | "r2" | "filesyst
 }
 
 export async function POST(req: NextRequest) {
+  // Early Content-Length check before reading body into memory
+  const contentLength = parseInt(req.headers.get("content-length") || "0", 10);
+  if (contentLength > MAX_UPLOAD_BYTES) {
+    return NextResponse.json({ error: "File too large (max 4.5MB)" }, { status: 413 });
+  }
+
   const user = await getUserFromRequest(req);
   if (!user) return NextResponse.json({ error: AUTH_ERROR_MESSAGE }, { status: 401 });
+
+  // Rate limit: 5 uploads per minute per user
+  const rl = await checkRateLimit(`upload:${user.uid}`, 5, 60_000);
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: "Too many uploads. Please wait before uploading again." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
 
   const { user: dbUser } = await ensureUser(user);
 
