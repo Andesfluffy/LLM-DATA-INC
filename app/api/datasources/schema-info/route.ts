@@ -37,6 +37,6 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   } finally {
-    await client.disconnect();
+    try { await client.disconnect(); } catch { /* swallow disconnect errors */ }
   }
 }

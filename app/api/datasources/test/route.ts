@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json({ ms: result.ms });
     } finally {
-      await client.disconnect();
+      try { await client.disconnect(); } catch { /* swallow disconnect errors */ }
     }
   }
 

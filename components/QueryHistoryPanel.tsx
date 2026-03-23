@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { History, ChevronDown, ChevronRight, Clock, Database, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { History, ChevronDown, ChevronRight, Clock, Database, RotateCcw, SearchX } from "lucide-react";
 import { getAuthHeaders } from "@/lib/uploadUtils";
 
 type HistoryEntry = {
@@ -64,6 +64,7 @@ export default function QueryHistoryPanel({ onRerun }: Props) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
         className="w-full flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4 hover:bg-white/[0.02] transition-colors text-left"
       >
         <div className="flex items-center gap-2.5 min-w-0">
@@ -85,16 +86,18 @@ export default function QueryHistoryPanel({ onRerun }: Props) {
       </button>
 
       {open && (
-        <div className="border-t border-white/[0.04]">
+        <div className="border-t border-white/[0.04] animate-fade-in">
           {loading ? (
             <div className="px-4 py-4 space-y-2 sm:px-5">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-10 rounded-xl bg-white/[0.02] animate-pulse" />
+                <div key={i} className="h-10 rounded-xl bg-white/[0.04] animate-skeleton" style={{ animationDelay: `${i * 100}ms` }} />
               ))}
             </div>
           ) : history.length === 0 ? (
-            <div className="px-4 py-6 text-center sm:px-5">
-              <p className="text-sm text-grape-500">No queries yet — ask something above to get started.</p>
+            <div className="px-4 py-8 text-center sm:px-5">
+              <SearchX className="h-8 w-8 text-grape-500/50 mx-auto mb-2" />
+              <p className="text-sm font-medium text-grape-400 mb-1">No queries yet</p>
+              <p className="text-xs text-grape-500">Ask a question above and your history will appear here.</p>
             </div>
           ) : (
             <div className="divide-y divide-white/[0.04]">
@@ -151,8 +154,9 @@ export default function QueryHistoryPanel({ onRerun }: Props) {
                           <button
                             type="button"
                             title="Re-run this question"
+                            aria-label={`Re-run: ${entry.nlQuery}`}
                             onClick={() => onRerun(entry.nlQuery!)}
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-grape-500 hover:text-white hover:bg-white/[0.06] transition-colors"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-grape-500 hover:text-white hover:bg-white/[0.06] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
                           >
                             <RotateCcw className="h-3 w-3" />
                           </button>
@@ -161,8 +165,10 @@ export default function QueryHistoryPanel({ onRerun }: Props) {
                           <button
                             type="button"
                             title="View SQL"
+                            aria-label={isExpanded ? "Hide SQL" : "View SQL"}
+                            aria-expanded={isExpanded}
                             onClick={() => setExpandedSql(isExpanded ? null : entry.id)}
-                            className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-grape-500 hover:text-white hover:bg-white/[0.06] transition-colors"
+                            className="inline-flex h-6 w-6 items-center justify-center rounded-lg text-grape-500 hover:text-white hover:bg-white/[0.06] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/20"
                           >
                             {isExpanded ? (
                               <ChevronDown className="h-3 w-3" />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Code2 } from "lucide-react";
 import CodeBlock from "@/src/components/CodeBlock";
 
@@ -11,6 +11,7 @@ type SqlCollapsibleProps = {
 
 export default function SqlCollapsible({ sql, busy }: SqlCollapsibleProps) {
   const [showSql, setShowSql] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   if (!sql && !busy) return null;
 
@@ -19,6 +20,7 @@ export default function SqlCollapsible({ sql, busy }: SqlCollapsibleProps) {
       <button
         type="button"
         onClick={() => setShowSql(!showSql)}
+        aria-expanded={showSql}
         className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-white/[0.02] transition-colors rounded-xl"
       >
         <div className="inline-flex h-6 w-6 items-center justify-center rounded-lg bg-white/[0.04] text-grape-300">
@@ -28,7 +30,7 @@ export default function SqlCollapsible({ sql, busy }: SqlCollapsibleProps) {
           {showSql ? "Hide" : "Show"} query (advanced)
         </p>
         <svg
-          className={`h-4 w-4 text-grape-300 transition-transform ${showSql ? "rotate-180" : ""}`}
+          className={`h-4 w-4 text-grape-300 transition-transform duration-200 ${showSql ? "rotate-180" : ""}`}
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -37,11 +39,20 @@ export default function SqlCollapsible({ sql, busy }: SqlCollapsibleProps) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      {showSql && sql && (
-        <div className="px-4 pb-4">
-          <CodeBlock code={sql} />
-        </div>
-      )}
+      <div
+        ref={contentRef}
+        className="overflow-hidden transition-all duration-200 ease-in-out"
+        style={{
+          maxHeight: showSql ? contentRef.current?.scrollHeight ?? 500 : 0,
+          opacity: showSql ? 1 : 0,
+        }}
+      >
+        {sql && (
+          <div className="px-4 pb-4">
+            <CodeBlock code={sql} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

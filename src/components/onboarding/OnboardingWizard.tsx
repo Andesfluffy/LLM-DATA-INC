@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Sparkles,
   Database,
@@ -82,6 +82,15 @@ export default function OnboardingWizard({
 
   const isSpreadsheet = form.type === "csv";
   const isSqlite = form.type === "sqlite";
+  const firstInputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+
+  // Auto-focus the first input when step changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      firstInputRef.current?.focus();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [step]);
 
   const buildSavePayload = useCallback(() => {
     if (form.type === "csv") return null;
@@ -650,6 +659,7 @@ export default function OnboardingWizard({
               </div>
 
               <textarea
+                ref={firstInputRef as React.RefObject<HTMLTextAreaElement>}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 rows={2}

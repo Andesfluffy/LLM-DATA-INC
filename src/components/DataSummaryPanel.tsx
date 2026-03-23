@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Database, Sparkles, Loader2, ArrowRight, ChevronDown, ChevronUp, ChevronsDown, ChevronsUp } from "lucide-react";
 import { getAuthHeaders } from "@/lib/uploadUtils";
 
@@ -24,6 +24,7 @@ export default function DataSummaryPanel({ datasourceId, datasourceName, onAsk }
   const [data, setData] = useState<SummaryData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showAllSuggestions, setShowAllSuggestions] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return sessionStorage.getItem(SESSION_KEY) === "1";
@@ -124,8 +125,15 @@ export default function DataSummaryPanel({ datasourceId, datasourceName, onAsk }
         </div>
       </button>
 
-      {/* Expanded body */}
-      {!collapsed && (
+      {/* Expanded body — animated */}
+      <div
+        ref={bodyRef}
+        className="overflow-hidden transition-all duration-300 ease-in-out"
+        style={{
+          maxHeight: collapsed ? 0 : bodyRef.current?.scrollHeight ?? 1000,
+          opacity: collapsed ? 0 : 1,
+        }}
+      >
         <div className="px-4 pb-4 sm:px-5 sm:pb-5 md:px-6 md:pb-6 space-y-4 border-t border-white/[0.04]">
           {loading ? (
             <div className="space-y-3 pt-4">
@@ -220,7 +228,7 @@ export default function DataSummaryPanel({ datasourceId, datasourceName, onAsk }
             </>
           ) : null}
         </div>
-      )}
+      </div>
     </div>
   );
 }

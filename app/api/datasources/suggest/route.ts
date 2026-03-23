@@ -110,6 +110,6 @@ Respond ONLY with valid JSON in this exact shape: {"description": "...", "sugges
     suggestCacheSet(cacheKey, { data: result, expiresAt: Date.now() + 60 * 60_000 });
     return NextResponse.json(result);
   } finally {
-    await client.disconnect();
+    try { await client.disconnect(); } catch { /* swallow disconnect errors */ }
   }
 }

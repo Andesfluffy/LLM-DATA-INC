@@ -132,7 +132,7 @@ export default function ResultsCard({
         ) : (
           <EmptyState
             title="No results yet"
-            message="Ask a question above — insights and charts will appear here."
+            message="Type a question in the search box above to query your data. Charts and tables will appear here automatically."
           />
         )}
 

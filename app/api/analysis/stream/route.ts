@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
         );
       } finally {
         controller.close();
-        await client.disconnect();
+        try { await client.disconnect(); } catch { /* swallow disconnect errors */ }
       }
     },
   });

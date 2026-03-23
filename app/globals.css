@@ -139,6 +139,11 @@
   .brand-bg {
     background: #000000;
   }
+
+  /* Tabular numbers for data-heavy UIs */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 /* ── Print / PDF export ── */
@@ -228,5 +233,31 @@
   .print-report-header p {
     font-size: 11px !important;
     color: #6b7280 !important;
+  }
+
+  /* Chart container print fixes */
+  [data-print-section] .brand-bg {
+    background: #ffffff !important;
+    border-color: #e5e7eb !important;
+  }
+  [data-print-section] .recharts-surface { background: #ffffff !important; }
+  [data-print-section] .recharts-wrapper { background: #ffffff !important; }
+
+  /* Pagination hidden in print */
+  [data-print-section] [aria-label="Table pagination"] { display: none !important; }
+
+  /* Insight & analysis panels */
+  [data-print-section] .text-emerald-400,
+  [data-print-section] .text-amber-400,
+  [data-print-section] .text-amber-300 { color: #92400e !important; }
+
+  [data-print-section] .text-grape-500,
+  [data-print-section] .text-grape-600 { color: #6b7280 !important; }
+
+  /* Code blocks */
+  [data-print-section] pre {
+    background: #f9fafb !important;
+    border: 1px solid #e5e7eb !important;
+    color: #1f2937 !important;
   }
 }

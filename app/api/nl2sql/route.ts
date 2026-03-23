@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ error: "Failed to generate SQL" }, { status: 500 });
   } finally {
-    await client.disconnect();
+    try { await client.disconnect(); } catch { /* swallow disconnect errors */ }
   }
 }
 

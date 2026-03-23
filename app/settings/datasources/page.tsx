@@ -1,6 +1,6 @@
 "use client";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Database, TestTube2, Shield, HelpCircle, Loader2, CheckCircle2, XCircle, Info, Trash2 } from "lucide-react";
+import { Database, TestTube2, Shield, HelpCircle, Loader2, CheckCircle2, XCircle, Info, Trash2, ChevronRight, Home } from "lucide-react";
 import Card, { CardBody, CardHeader } from "@/src/components/Card";
 import Button from "@/src/components/Button";
 import Input from "@/src/components/Input";
@@ -381,6 +381,18 @@ export default function DataSourcesSettingsPage() {
       description="Configure and test your database or spreadsheet connection securely."
     >
       <div className="space-y-8">
+        {/* Breadcrumb */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-grape-400">
+          <a href="/" className="flex items-center gap-1 hover:text-white transition-colors">
+            <Home className="h-3.5 w-3.5" />
+            <span>Home</span>
+          </a>
+          <ChevronRight className="h-3 w-3 text-grape-600" />
+          <span className="text-grape-300">Settings</span>
+          <ChevronRight className="h-3 w-3 text-grape-600" />
+          <span className="text-white font-medium">Data Sources</span>
+        </nav>
+
         {/* Page header */}
         <div>
           <div className="mb-2 flex items-center gap-3">

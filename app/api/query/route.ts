@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
       { status: isTimeout ? 504 : 500 }
     );
   } finally {
-    await client.disconnect();
+    try { await client.disconnect(); } catch { /* swallow disconnect errors */ }
   }
 }
 

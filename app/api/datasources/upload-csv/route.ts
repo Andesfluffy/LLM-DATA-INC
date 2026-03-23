@@ -228,6 +228,10 @@ export async function POST(req: NextRequest) {
   // Use sheet name for Excel uploads when available, otherwise filename.
   const tableName = sanitizeTableName(parsed.sourceSheet || baseName);
   const stats = inspectCsv(parsed.csvBuffer, parsed.delimiter);
+  // Sanitize column headers to prevent injection-like names in metadata
+  stats.headers = stats.headers.map((h) =>
+    h.replace(/[^a-zA-Z0-9_ .\-()]/g, "").trim() || "column"
+  );
   const storage = pickStorageMode(parsed.csvBuffer.byteLength);
 
   const metadata: Record<string, unknown> = {

@@ -60,6 +60,6 @@ export async function POST(req: NextRequest) {
     const isTimeout = /statement timeout|canceling statement|max_execution_time|timed out/i.test(msg);
     return NextResponse.json({ error: isTimeout ? "Query timed out after 10s" : "Query failed" }, { status: isTimeout ? 504 : 500 });
   } finally {
-    await client.disconnect();
+    try { await client.disconnect(); } catch { /* swallow disconnect errors */ }
   }
 }
